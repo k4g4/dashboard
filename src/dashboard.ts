@@ -1,20 +1,26 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, mkdirSync } from 'node:fs'
 
 const BUILD_DIR = Bun.env.BUILD_DIR ?? 'build'
 const PORT = Bun.env.PORT ?? '3000'
 const DEVELOPMENT = Bun.env.DEVELOPMENT === 'true'
+
 const SRC = 'src'
+const PAGE_SCRIPTS = `${SRC}/scripts`
 const PAGES = 'pages'
+const ASSETS = 'assets'
 
 export class Dashboard {
     scripts: Map<string, bigint>
 
     constructor() {
+        try { mkdirSync(BUILD_DIR) }
+        catch { }
+
         this.scripts = new Map(
             DEVELOPMENT ?
                 // cache the hash of each script to rebuild them if they change
-                readdirSync('src').map(script => {
-                    const hash = Bun.hash(readFileSync(`${SRC}/${script}`))
+                readdirSync(PAGE_SCRIPTS).map(script => {
+                    const hash = Bun.hash(readFileSync(`${PAGE_SCRIPTS}/${script}`))
                     return [script, BigInt(hash)]
                 }) :
                 []
@@ -26,14 +32,25 @@ export class Dashboard {
         const { pathname, searchParams } = new URL(url)
 
         if (method === 'GET') {
-            if (pathname === '/') {
-                return new Response(Bun.file(`${PAGES}/index.htm`))
-            } else if (pathname.endsWith('.js')) {
+            if (pathname.endsWith('.js')) {
                 return await this.fetchScript(pathname)
-            } else {
-                return await this.fetchPage(pathname)
             }
+
+            if (pathname === '/favicon.ico') {
+                return await this.fetchAsset('favicon.ico')
+            }
+
+            let page;
+            if (pathname === '/') {
+                page = '/index.htm'
+            } else if (!pathname.endsWith('.htm')) {
+                page = `${pathname}.htm`
+            } else {
+                page = pathname
+            }
+            return await this.fetchPage(page)
         }
+
         return await this.fetch404()
     }
 
@@ -42,11 +59,11 @@ export class Dashboard {
 
         if (DEVELOPMENT) {
             const scriptName = builtScriptName.replace('.js', '.tsx')
-            const scriptPath = `${SRC}/${scriptName}`
+            const scriptPath = `${PAGE_SCRIPTS}/${scriptName}`
 
             const storedHash = this.scripts.get(scriptName)
             const hash = BigInt(Bun.hash(await Bun.file(scriptPath).text()))
-            if (storedHash !== hash) {
+            if (storedHash !== hash || !await Bun.file(`${BUILD_DIR}/${builtScriptName}`).exists()) {
                 const { success, logs } = await Bun.build({
                     entrypoints: [scriptPath],
                     outdir: BUILD_DIR
@@ -59,6 +76,10 @@ export class Dashboard {
         }
 
         return new Response(Bun.file(`${BUILD_DIR}/${builtScriptName}`))
+    }
+
+    async fetchAsset(asset: string) {
+        return new Response(Bun.file(`${ASSETS}/${asset}`))
     }
 
     async fetchPage(pathname: string) {
