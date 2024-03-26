@@ -1,4 +1,5 @@
-import { readdirSync, readFileSync, mkdirSync } from 'node:fs'
+import { readdirSync, mkdirSync, statSync } from 'node:fs'
+import { stat } from 'node:fs/promises'
 
 const BUILD_DIR = Bun.env.BUILD_DIR ?? 'build'
 const PORT = Bun.env.PORT ?? '3000'
@@ -10,7 +11,7 @@ const PAGES = 'pages'
 const ASSETS = 'assets'
 
 export class Dashboard {
-    scripts: Map<string, bigint>
+    scripts: Map<string, number>
 
     constructor() {
         try { mkdirSync(BUILD_DIR) }
@@ -18,10 +19,10 @@ export class Dashboard {
 
         this.scripts = new Map(
             DEVELOPMENT ?
-                // cache the hash of each script to rebuild them if they change
+                // cache the modified time of each script to rebuild them if they change
                 readdirSync(PAGE_SCRIPTS).map(script => {
-                    const hash = Bun.hash(readFileSync(`${PAGE_SCRIPTS}/${script}`))
-                    return [script, BigInt(hash)]
+                    const { mtimeMs } = statSync(`${PAGE_SCRIPTS}/${script}`)
+                    return [script, mtimeMs]
                 }) :
                 []
         )
@@ -36,8 +37,8 @@ export class Dashboard {
                 return await this.fetchScript(pathname)
             }
 
-            if (pathname === '/favicon.ico') {
-                return await this.fetchAsset('favicon.ico')
+            if (['.ico', '.png', '.css'].some(ext => pathname.endsWith(ext))) {
+                return await this.fetchAsset(pathname);
             }
 
             let page;
@@ -61,17 +62,17 @@ export class Dashboard {
             const scriptName = builtScriptName.replace('.js', '.tsx')
             const scriptPath = `${PAGE_SCRIPTS}/${scriptName}`
 
-            const storedHash = this.scripts.get(scriptName)
-            const hash = BigInt(Bun.hash(await Bun.file(scriptPath).text()))
-            if (storedHash !== hash || !await Bun.file(`${BUILD_DIR}/${builtScriptName}`).exists()) {
+            const storedMtimeMs = this.scripts.get(scriptName)
+            const { mtimeMs } = await stat(scriptPath)
+            if (storedMtimeMs !== mtimeMs || !await Bun.file(`${BUILD_DIR}/${builtScriptName}`).exists()) {
                 const { success, logs } = await Bun.build({
                     entrypoints: [scriptPath],
                     outdir: BUILD_DIR
                 })
                 if (!success) {
-                    throw logs.toString()
+                    throw `build error for ${scriptPath}:\n${logs}`
                 }
-                this.scripts.set(scriptName, hash)
+                this.scripts.set(scriptName, mtimeMs)
             }
         }
 
@@ -79,7 +80,7 @@ export class Dashboard {
     }
 
     async fetchAsset(asset: string) {
-        return new Response(Bun.file(`${ASSETS}/${asset}`))
+        return new Response(Bun.file(`${ASSETS}${asset}`))
     }
 
     async fetchPage(pathname: string) {

@@ -1,9 +1,13 @@
 import React, { type PropsWithChildren } from "react";
+import { Navbar } from "./navbar";
 
 export function Page({ children }: PropsWithChildren) {
     return (
         <React.StrictMode>
-            {children}
+            <Navbar />
+            <div className='page-container'>
+                {children}
+            </div>
         </React.StrictMode>
     )
 }
