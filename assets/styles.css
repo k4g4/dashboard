@@ -2,6 +2,7 @@
     --harsh-gray: #202022;
     --near-black: #121212;
     --egg-white: #f1f1f1;
+    --light-gray: #949494;
     --blue-gray: #586683;
     --light-purp: #8975ff;
     --nav-height: 90px;
@@ -54,6 +55,7 @@ nav {
 }
 
 .nav-item a {
+    color: var(--light-gray);
     text-decoration: none;
     flex: 1 1 auto;
     margin-top: 0.8em;
@@ -61,8 +63,12 @@ nav {
     margin-right: 1em;
 }
 
-.nav-item:hover a {
+.nav-item:hover a:not(.selected) {
     filter: drop-shadow(0 0 5px var(--egg-white));
+}
+
+.nav-item a.selected {
+    color: var(--egg-white);
 }
 
 .nav-item-underline {

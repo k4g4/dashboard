@@ -1,10 +1,14 @@
 import React, { type PropsWithChildren } from "react";
 import { Navbar } from "./navbar";
 
-export function Page({ children }: PropsWithChildren) {
+export type PageName = 'home' | 'bank' | 'passwords' | 'shopping'
+
+type PageProps = { pageName: PageName }
+
+export function Page({ children, pageName }: PropsWithChildren<PageProps>) {
     return (
         <React.StrictMode>
-            <Navbar />
+            <Navbar pageName={pageName} />
             <div className='page-container'>
                 {children}
             </div>
