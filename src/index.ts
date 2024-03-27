@@ -1,3 +1,5 @@
+#!/usr/bin/env bun
+
 import { Dashboard } from './dashboard'
 
 const dashboard = new Dashboard()

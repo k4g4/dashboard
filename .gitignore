@@ -2,6 +2,7 @@
 
 build/
 deploy.sh
+dashboard
 
 ### BUN IGNORES ###
 

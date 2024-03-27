@@ -1,6 +1,9 @@
+#!/usr/bin/env bun
+// @bun
+
 // src/dashboard.ts
-var {readdirSync, mkdirSync, statSync} = (()=>({}));
-var {stat} = (()=>({}));
+import {readdirSync, mkdirSync, statSync} from "fs";
+import {stat} from "fs/promises";
 var BUILD_DIR = Bun.env.BUILD_DIR ?? "build";
 var PORT = Bun.env.PORT ?? "3000";
 var DEVELOPMENT = Bun.env.DEVELOPMENT === "true";

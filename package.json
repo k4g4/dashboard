@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "bun --hot run ./src",
     "buildscripts": "bun build src/scripts/*.tsx --outdir build",
-    "buildserver": "bun build src/index.ts --outfile dashboard.js"
+    "buildserver": "bun build --compile --minify --sourcemap src/index.ts --outfile dashboard"
   },
   "devDependencies": {
     "@types/bun": "latest",
