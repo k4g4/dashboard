@@ -11,6 +11,7 @@ export function Navbar() {
             <div className='nav'>
                 <NavItem href='bank' label='Bank' />
                 <NavItem href='passwords' label='Passwords' />
+                <NavItem href='shopping' label='Shopping List' />
             </div>
         </nav>
     )

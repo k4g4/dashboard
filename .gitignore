@@ -1,6 +1,7 @@
 ### MY IGNORES ###
 
 build/
+deploy.sh
 
 ### BUN IGNORES ###
 
