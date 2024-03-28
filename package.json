@@ -4,19 +4,23 @@
   "type": "module",
   "scripts": {
     "dev": "bun --hot run ./src",
-    "buildscripts": "bun build src/scripts/*.tsx --outdir build",
+    "buildscripts": "bun build --minify src/scripts/*.tsx --outdir build",
     "buildserver": "bun build --compile --minify --sourcemap src/index.ts --outfile dashboard"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/react": "^18.2.70",
-    "@types/react-dom": "^18.2.22"
+    "@types/react-dom": "^18.2.22",
+    "@types/uuid": "^9.0.8"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@react-oauth/google": "latest",
+    "jwt-decode": "^4.0.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "uuid": "^9.0.1"
   }
 }
