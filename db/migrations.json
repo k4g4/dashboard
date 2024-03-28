@@ -1,0 +1,7 @@
+[
+    [
+        "CREATE TABLE googleAccount(googleId TEXT PRIMARY KEY, userUuid CHARACTER(36));",
+        "CREATE TABLE account(username VARCHAR(20), passwordHash TEXT, userUuid CHARACTER(36), PRIMARY KEY (username, passwordHash));",
+        "CREATE TABLE user(userUuid CHARACTER(36) PRIMARY KEY, loggedIn INT);"
+    ]
+]

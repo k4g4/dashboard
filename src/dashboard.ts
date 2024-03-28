@@ -1,7 +1,7 @@
 import { readdirSync, mkdirSync, statSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { Db } from './database'
-import { GoogleidToUuidEndpoint, type GoogleidToUuidBody } from './sharedtypes'
+import { GOOGLE_LOGIN_ENDPOINT, isGoogleLoginBody, type GoogleLoginBody } from './sharedtypes'
 
 const BUILD_DIR = Bun.env.BUILD_DIR ?? 'build'
 const PORT = Bun.env.PORT ?? '3000'
@@ -11,6 +11,14 @@ const SRC = 'src'
 const PAGE_SCRIPTS = `${SRC}/scripts`
 const PAGES = 'pages'
 const ASSETS = 'assets'
+
+type Get = URLSearchParams
+type Post = any // JSON body
+type ApiRequest = Get | Post
+
+function isGet(req: Get | Post): req is Get {
+    return req instanceof URLSearchParams
+}
 
 export class Dashboard {
     scripts: Map<string, number>
@@ -37,6 +45,13 @@ export class Dashboard {
         const { method, url } = req
         const { pathname, searchParams } = new URL(url)
 
+        if (pathname.startsWith('/api')) {
+            // trim off /api/
+            const endpoint = pathname.slice(5)
+            const apiReq = method === 'GET' ? searchParams : await req.json()
+            return await this.serveApi(endpoint, apiReq)
+        }
+
         if (method === 'GET') {
             if (pathname.endsWith('.js')) {
                 return await this.fetchScript(pathname)
@@ -44,15 +59,6 @@ export class Dashboard {
 
             if (['.ico', '.png', '.css'].some(ext => pathname.endsWith(ext))) {
                 return await this.fetchAsset(pathname);
-            }
-
-            if (pathname.startsWith('/api')) {
-                // trim off /api/
-                switch (pathname.slice(5)) {
-                    case GoogleidToUuidEndpoint:
-                        await this.googleidToUuid(searchParams.get('googleid'))
-                        break
-                }
             }
 
             let page;
@@ -66,7 +72,19 @@ export class Dashboard {
             return await this.fetchPage(page)
         }
 
-        return await this.respond404()
+        return await this.serve404()
+    }
+
+    async serveApi(endpoint: string, req: ApiRequest) {
+        if (isGet(req)) {
+            switch (endpoint) {
+                case GOOGLE_LOGIN_ENDPOINT:
+                    return await this.googleLogin(req.get('googleid'))
+            }
+            return await this.serve404()
+        } else {
+            return await this.serve404()
+        }
     }
 
     async fetchScript(pathname: string) {
@@ -102,21 +120,28 @@ export class Dashboard {
         if (await page.exists()) {
             return new Response(page)
         } else {
-            return await this.respond404()
+            return await this.serve404()
         }
     }
 
-    async respond404() {
+    async serve404() {
         return new Response(`404 - File not found`, { status: 404 })
     }
 
-    async googleidToUuid(googleid: string | null) {
-        if (googleid) {
-            const uuid = await this.db.googleidToUuid(googleid)
-            const body: GoogleidToUuidBody = { uuid }
+    async googleLogin(googleId: string | null) {
+        if (googleId) {
+            let body: GoogleLoginBody
+            const uuid = this.db.getGoogleAccount(googleId)
+            if (uuid) {
+                body = { uuid }
+            } else {
+                const uuid = this.db.newGoogleAccount(googleId)
+                body = { uuid }
+            }
+            this.db.debug()
             return Response.json(body)
         } else {
-            return await this.respond404()
+            return await this.serve404()
         }
     }
 

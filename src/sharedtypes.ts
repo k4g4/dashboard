@@ -1,3 +1,5 @@
+// these types and functions are accessible both on the client and on the server
+
 import { validate } from 'uuid'
 
 export type Uuid = string & { readonly __tag: unique symbol }
@@ -9,10 +11,10 @@ export function isUuid(uuid: string | null): uuid is Uuid {
     return false
 }
 
-export const GoogleidToUuidEndpoint = 'googleid_to_uuid'
+export const GOOGLE_LOGIN_ENDPOINT = 'googlelogin'
 
-export type GoogleidToUuidBody = { uuid: Uuid }
+export type GoogleLoginBody = { uuid: Uuid }
 
-export function isGoogleidToUuidBody(body: any): body is GoogleidToUuidBody {
+export function isGoogleLoginBody(body: any): body is GoogleLoginBody {
     return 'uuid' in body
 }
