@@ -1,5 +1,7 @@
 import { readdirSync, mkdirSync, statSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
+import { Db } from './database'
+import { GoogleidToUuidEndpoint, type GoogleidToUuidBody } from './sharedtypes'
 
 const BUILD_DIR = Bun.env.BUILD_DIR ?? 'build'
 const PORT = Bun.env.PORT ?? '3000'
@@ -12,6 +14,7 @@ const ASSETS = 'assets'
 
 export class Dashboard {
     scripts: Map<string, number>
+    db: Db
 
     constructor() {
         try { mkdirSync(BUILD_DIR) }
@@ -26,6 +29,8 @@ export class Dashboard {
                 }) :
                 []
         )
+
+        this.db = new Db()
     }
 
     async fetch(req: Request) {
@@ -41,6 +46,15 @@ export class Dashboard {
                 return await this.fetchAsset(pathname);
             }
 
+            if (pathname.startsWith('/api')) {
+                // trim off /api/
+                switch (pathname.slice(5)) {
+                    case GoogleidToUuidEndpoint:
+                        await this.googleidToUuid(searchParams.get('googleid'))
+                        break
+                }
+            }
+
             let page;
             if (pathname === '/') {
                 page = '/index.htm'
@@ -52,11 +66,11 @@ export class Dashboard {
             return await this.fetchPage(page)
         }
 
-        return await this.fetch404()
+        return await this.respond404()
     }
 
     async fetchScript(pathname: string) {
-        const builtScriptName = pathname.substring(1) // trim off leading /
+        const builtScriptName = pathname.slice(1) // trim off leading /
 
         if (DEVELOPMENT) {
             const scriptName = builtScriptName.replace('.js', '.tsx')
@@ -88,12 +102,22 @@ export class Dashboard {
         if (await page.exists()) {
             return new Response(page)
         } else {
-            return await this.fetch404()
+            return await this.respond404()
         }
     }
 
-    async fetch404() {
+    async respond404() {
         return new Response(`404 - File not found`, { status: 404 })
+    }
+
+    async googleidToUuid(googleid: string | null) {
+        if (googleid) {
+            const uuid = await this.db.googleidToUuid(googleid)
+            const body: GoogleidToUuidBody = { uuid }
+            return Response.json(body)
+        } else {
+            return await this.respond404()
+        }
     }
 
     serve() {

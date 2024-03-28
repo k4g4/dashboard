@@ -1,5 +1,4 @@
-import { useState } from "react"
-import type { PageName } from "./page"
+import type { PageName } from './page'
 
 export function Navbar({ pageName }: { pageName: PageName }) {
     const onHomeClick = () => {
