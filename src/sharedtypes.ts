@@ -11,10 +11,17 @@ export function isUuid(uuid: string | null): uuid is Uuid {
     return false
 }
 
+export const GOOGLE_ID_PARAM = 'googleid'
+export const UUID_PARAM = 'uuid'
+
 export const GOOGLE_LOGIN_ENDPOINT = 'googlelogin'
 
-export type GoogleLoginBody = { uuid: Uuid }
+export type LoginResponse = { uuid: Uuid }
 
-export function isGoogleLoginBody(body: any): body is GoogleLoginBody {
+export function isLoginResponse(body: any): body is LoginResponse {
     return 'uuid' in body
 }
+
+export const LOGOUT_ENDPOINT = 'logout'
+
+export const LOGIN_ENDPOINT = 'login'

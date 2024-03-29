@@ -5,6 +5,7 @@
     --light-gray: #949494;
     --blue-gray: #586683;
     --light-purp: #8975ff;
+    --dark-purp: #5b3fff;
     --nav-height: 90px;
 }
 
@@ -87,4 +88,71 @@ nav {
 
 .page-container {
     margin: 100px;
+}
+
+.logout-icon {
+    position: absolute;
+    height: calc(var(--nav-height) - 40px);
+    width: calc(var(--nav-height) - 40px);
+    top: 18px;
+    left: calc(100% - (var(--nav-height) - 40px) - 20px);
+    cursor: pointer;
+    fill: var(--light-purp);
+}
+
+.login-panel {
+    position: absolute;
+    width: 400px;
+    height: 500px;
+    left: calc(50% - 200px);
+    top: calc(50% - 250px);
+    background-color: var(--near-black);
+    border-radius: 45px;
+    filter: drop-shadow(0 20px 20px var(--near-black));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.login-panel h1 {
+    margin-top: 50px;
+}
+
+.google-login {
+    margin-bottom: 50px;
+}
+
+.login-fields {
+    display: grid;
+    grid-template-columns: 150px 250px;
+    gap: 20px;
+}
+
+.login-fields label {
+    margin-left: 20px;
+    text-align: right;
+    font-size: 20px;
+    align-self: center;
+}
+
+.login-fields input {
+    margin-right: 60px;
+    border-radius: 5px;
+    font-size: 20px;
+    height: 30px;
+}
+
+.login-button {
+    color: var(--egg-white);
+    cursor: pointer;
+    width: 150px;
+    height: 50px;
+    border-radius: 15px;
+    font-size: 20px;
+    font-weight: semi-bold;
+    background-color: var(--dark-purp);
+    border: 0;
+    margin-left: 10px;
+    margin-right: 5px;
 }

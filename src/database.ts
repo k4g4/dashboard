@@ -20,16 +20,16 @@ export class Db {
                     this.db.exec(query)
                 }
             }
+            this.db.exec(`PRAGMA user_version = ${migrations.length}`)
         })()
-        this.db.exec(`PRAGMA user_version = ${migrations.length}`)
     }
 
     getGoogleAccount(googleId: string) {
         const query = `SELECT userUuid FROM googleAccount WHERE googleId = '${googleId}'`
         const result = this.db.query(query).get() as { userUuid: string } | null
-        console.log(result)
         if (result) {
             if (isUuid(result.userUuid)) {
+                this.db.exec(`UPDATE user SET loggedIn = TRUE WHERE userUuid = '${result.userUuid}'`)
                 return result.userUuid
             }
             throw `found invalid uuid (${result.userUuid}) for google id (${googleId})`
@@ -39,11 +39,14 @@ export class Db {
 
     newGoogleAccount(googleId: string) {
         const uuid = generateUuid() as Uuid
-        this.db.exec(`INSERT INTO googleAccount(googleId, userUuid) VALUES ('${googleId}', '${uuid}')`)
+        this.db.transaction(() => {
+            this.db.exec(`INSERT INTO googleAccount(googleId, userUuid) VALUES ('${googleId}', '${uuid}')`)
+            this.db.exec(`INSERT INTO user(userUuid, loggedIn) VALUES ('${uuid}', TRUE)`)
+        })()
         return uuid
     }
 
-    debug() {
-        console.log(this.db.query('SELECT * FROM googleAccount').all())
+    setUserLogout(uuid: Uuid) {
+        this.db.exec(`UPDATE user SET loggedIn = FALSE WHERE userUuid = '${uuid}'`)
     }
 }

@@ -1,7 +1,7 @@
 import { readdirSync, mkdirSync, statSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { Db } from './database'
-import { GOOGLE_LOGIN_ENDPOINT, isGoogleLoginBody, type GoogleLoginBody } from './sharedtypes'
+import { GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT, isGoogleLoginBody, isUuid, LOGOUT_ENDPOINT, UUID_PARAM, type GoogleLoginBody, type Uuid } from './sharedtypes'
 
 const BUILD_DIR = Bun.env.BUILD_DIR ?? 'build'
 const PORT = Bun.env.PORT ?? '3000'
@@ -72,18 +72,25 @@ export class Dashboard {
             return await this.fetchPage(page)
         }
 
-        return await this.serve404()
+        return this.serve404()
     }
 
     async serveApi(endpoint: string, req: ApiRequest) {
         if (isGet(req)) {
             switch (endpoint) {
                 case GOOGLE_LOGIN_ENDPOINT:
-                    return await this.googleLogin(req.get('googleid'))
+                    return await this.googleLogin(req.get(GOOGLE_ID_PARAM))
+
+                case LOGOUT_ENDPOINT:
+                    const uuid = req.get(UUID_PARAM)
+                    if (isUuid(uuid)) {
+                        return await this.logout(uuid)
+                    }
+                    return this.serve400()
             }
-            return await this.serve404()
+            return this.serve404()
         } else {
-            return await this.serve404()
+            return this.serve404()
         }
     }
 
@@ -120,12 +127,20 @@ export class Dashboard {
         if (await page.exists()) {
             return new Response(page)
         } else {
-            return await this.serve404()
+            return this.serve404()
         }
     }
 
-    async serve404() {
-        return new Response(`404 - File not found`, { status: 404 })
+    serve200() {
+        return new Response(null, { status: 200 })
+    }
+
+    serve400() {
+        return new Response('400 - Bad Request', { status: 400 })
+    }
+
+    serve404() {
+        return new Response('404 - File not found', { status: 404 })
     }
 
     async googleLogin(googleId: string | null) {
@@ -138,11 +153,15 @@ export class Dashboard {
                 const uuid = this.db.newGoogleAccount(googleId)
                 body = { uuid }
             }
-            this.db.debug()
             return Response.json(body)
         } else {
-            return await this.serve404()
+            return this.serve400()
         }
+    }
+
+    async logout(uuid: Uuid) {
+        this.db.setUserLogout(uuid)
+        return this.serve200()
     }
 
     serve() {
