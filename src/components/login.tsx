@@ -1,8 +1,15 @@
 import { GoogleLogin, GoogleOAuthProvider, type CredentialResponse } from '@react-oauth/google'
 import { env } from '../env_macro' with { type: 'macro' }
-import { useState, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from 'react'
+import {
+    useState, type ChangeEvent, type Dispatch,
+    type FormEvent, type SetStateAction, type MouseEvent
+} from 'react'
 import { jwtDecode } from 'jwt-decode'
-import { GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT, isLoginResponse, LOGIN_ENDPOINT, type Uuid } from '../sharedtypes'
+import {
+    GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT,
+    isLoginBody,
+    isLoginResponse, LOGIN_ENDPOINT, MAX_PASSWORD_LEN, MAX_USERNAME_LEN, type Uuid
+} from '../sharedtypes'
 
 export function Login({ setUuid }: { setUuid: Dispatch<SetStateAction<Uuid | null>> }) {
     const onError = () => {
@@ -49,6 +56,12 @@ export function Login({ setUuid }: { setUuid: Dispatch<SetStateAction<Uuid | nul
     const onSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
 
+        const loginBody = { username, password }
+        if (!isLoginBody(loginBody)) {
+            console.log('foo')
+            return
+        }
+
         fetch(`/api/${LOGIN_ENDPOINT}`,
             {
                 body: JSON.stringify({ username, password }),
@@ -73,7 +86,7 @@ export function Login({ setUuid }: { setUuid: Dispatch<SetStateAction<Uuid | nul
 
     const onUsernameChange = (event: ChangeEvent<HTMLInputElement>) => {
         const username = event.target.value
-        if (username.length <= 16) {
+        if (username.length <= MAX_USERNAME_LEN) {
             if (/^[A-Za-z0-9_]*$/.test(username)) {
                 setUsername(username)
             }
@@ -82,11 +95,15 @@ export function Login({ setUuid }: { setUuid: Dispatch<SetStateAction<Uuid | nul
 
     const onPasswordChange = (event: ChangeEvent<HTMLInputElement>) => {
         const password = event.target.value
-        if (password.length <= 16) {
+        if (password.length <= MAX_PASSWORD_LEN) {
             if (/^[A-Za-z0-9_]*$/.test(password)) {
                 setPassword(password)
             }
         }
+    }
+
+    const onSignUp = (event: MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault()
     }
 
     return (
@@ -102,7 +119,7 @@ export function Login({ setUuid }: { setUuid: Dispatch<SetStateAction<Uuid | nul
                     </div>
                     <div>
                         <button className='login-button' type='submit'>Log in</button>
-                        <button className='login-button'>Sign Up</button>
+                        <button className='login-button' onClick={onSignUp}>Sign Up</button>
                     </div>
                     {googleLoginButton}
                 </div>

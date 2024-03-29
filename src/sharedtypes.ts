@@ -19,9 +19,22 @@ export const GOOGLE_LOGIN_ENDPOINT = 'googlelogin'
 export type LoginResponse = { uuid: Uuid }
 
 export function isLoginResponse(body: any): body is LoginResponse {
-    return 'uuid' in body
+    return 'uuid' in body && typeof body.uuid === 'string'
 }
 
 export const LOGOUT_ENDPOINT = 'logout'
 
 export const LOGIN_ENDPOINT = 'login'
+
+export const MAX_USERNAME_LEN = 20
+export const MAX_PASSWORD_LEN = 20
+export const MIN_USERNAME_LEN = 5
+export const MIN_PASSWORD_LEN = 5
+export type LoginBody = { username: string, password: string }
+
+export function isLoginBody(body: any): body is LoginBody {
+    return ('username' in body && typeof body.username === 'string'
+        && body.username.length <= MAX_USERNAME_LEN && body.username.length >= MIN_USERNAME_LEN
+        && 'password' in body && typeof body.password === 'string'
+        && body.password.length <= MAX_PASSWORD_LEN && body.password.length >= MIN_PASSWORD_LEN)
+}

@@ -46,6 +46,30 @@ export class Db {
         return uuid
     }
 
+    getAccount(username: string) {
+        const query = `SELECT passwordHash, userUuid FROM account WHERE username = '${username}'`
+        const result = this.db.query(query).get() as { passwordHash: string, userUuid: string } | null
+        if (result) {
+            if (isUuid(result.userUuid)) {
+                this.db.exec(`UPDATE user SET loggedIn = TRUE WHERE userUuid = '${result.userUuid}'`)
+                return { passwordHash: result.passwordHash, uuid: result.userUuid }
+            }
+            throw `found invalid uuid (${result.userUuid}) for user (${username})`
+        }
+        return null
+    }
+
+    newAccount(username: string, passwordHash: string) {
+        const uuid = generateUuid() as Uuid
+        this.db.transaction(() => {
+            const query = `INSERT INTO account(username, passwordHash, userUuid) VALUES `
+                + `('${username}', '${passwordHash}', '${uuid}')`
+            this.db.exec(query)
+            this.db.exec(`INSERT INTO user(userUuid, loggedIn) VALUES ('${uuid}', TRUE)`)
+        })()
+        return uuid
+    }
+
     setUserLogout(uuid: Uuid) {
         this.db.exec(`UPDATE user SET loggedIn = FALSE WHERE userUuid = '${uuid}'`)
     }

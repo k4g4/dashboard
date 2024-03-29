@@ -1,7 +1,10 @@
 import { readdirSync, mkdirSync, statSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { Db } from './database'
-import { GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT, isGoogleLoginBody, isUuid, LOGOUT_ENDPOINT, UUID_PARAM, type GoogleLoginBody, type Uuid } from './sharedtypes'
+import {
+    GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT, isLoginBody, isUuid, LOGIN_ENDPOINT, LOGOUT_ENDPOINT,
+    UUID_PARAM, type LoginBody, type LoginResponse, type Uuid
+} from './sharedtypes'
 
 const BUILD_DIR = Bun.env.BUILD_DIR ?? 'build'
 const PORT = Bun.env.PORT ?? '3000'
@@ -90,6 +93,13 @@ export class Dashboard {
             }
             return this.serve404()
         } else {
+            switch (endpoint) {
+                case LOGIN_ENDPOINT:
+                    if (isLoginBody(req)) {
+                        return await this.login(req)
+                    }
+                    return this.serve400()
+            }
             return this.serve404()
         }
     }
@@ -139,13 +149,17 @@ export class Dashboard {
         return new Response('400 - Bad Request', { status: 400 })
     }
 
+    serve403() {
+        return new Response('403 - Forbidden', { status: 403 })
+    }
+
     serve404() {
         return new Response('404 - File not found', { status: 404 })
     }
 
     async googleLogin(googleId: string | null) {
         if (googleId) {
-            let body: GoogleLoginBody
+            let body: LoginResponse
             const uuid = this.db.getGoogleAccount(googleId)
             if (uuid) {
                 body = { uuid }
@@ -157,6 +171,22 @@ export class Dashboard {
         } else {
             return this.serve400()
         }
+    }
+
+    async login({ username, password }: LoginBody) {
+        let body: LoginResponse
+        const result = this.db.getAccount(username)
+        if (result) {
+            if (await Bun.password.verify(password, result.passwordHash)) {
+                body = { ...result }
+            } else {
+                return this.serve403()
+            }
+        } else {
+            const uuid = this.db.newAccount(username, await Bun.password.hash(password))
+            body = { uuid }
+        }
+        return Response.json(body)
     }
 
     async logout(uuid: Uuid) {
