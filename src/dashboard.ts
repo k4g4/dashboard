@@ -3,7 +3,7 @@ import { stat } from 'node:fs/promises'
 import { Db } from './database'
 import {
     GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT, isLoginBody, isUuid, LOGIN_ENDPOINT, LOGOUT_ENDPOINT,
-    UUID_PARAM, type LoginBody, type LoginResponse, type Uuid
+    UUID_PARAM, type ApiError, type LoginBody, type LoginResponse, type Uuid
 } from './sharedtypes'
 
 const BUILD_DIR = Bun.env.BUILD_DIR ?? 'build'
@@ -16,7 +16,7 @@ const PAGES = 'pages'
 const ASSETS = 'assets'
 
 type Get = URLSearchParams
-type Post = any // JSON body
+type Post = { json: unknown }
 type ApiRequest = Get | Post
 
 function isGet(req: Get | Post): req is Get {
@@ -51,7 +51,7 @@ export class Dashboard {
         if (pathname.startsWith('/api')) {
             // trim off /api/
             const endpoint = pathname.slice(5)
-            const apiReq = method === 'GET' ? searchParams : await req.json()
+            const apiReq = method === 'GET' ? searchParams : { json: await req.json() }
             return await this.serveApi(endpoint, apiReq)
         }
 
@@ -89,16 +89,16 @@ export class Dashboard {
                     if (isUuid(uuid)) {
                         return await this.logout(uuid)
                     }
-                    return this.serve400()
+                    return this.serve400('no uuid provided')
             }
             return this.serve404()
         } else {
             switch (endpoint) {
                 case LOGIN_ENDPOINT:
-                    if (isLoginBody(req)) {
-                        return await this.login(req)
+                    if (isLoginBody(req.json)) {
+                        return await this.login(req.json)
                     }
-                    return this.serve400()
+                    return this.serve400('invalid login json body')
             }
             return this.serve404()
         }
@@ -145,12 +145,9 @@ export class Dashboard {
         return new Response(null, { status: 200 })
     }
 
-    serve400() {
-        return new Response('400 - Bad Request', { status: 400 })
-    }
-
-    serve403() {
-        return new Response('403 - Forbidden', { status: 403 })
+    serve400(error: string) {
+        const body: ApiError = { error }
+        return Response.json(body, { status: 400 })
     }
 
     serve404() {
@@ -169,22 +166,27 @@ export class Dashboard {
             }
             return Response.json(body)
         } else {
-            return this.serve400()
+            return this.serve400('google id could not be read')
         }
     }
 
-    async login({ username, password }: LoginBody) {
+    async login({ username, password, signingUp }: LoginBody) {
         let body: LoginResponse
         const result = this.db.getAccount(username)
         if (result) {
+            if (signingUp) {
+                return this.serve400('this username is taken')
+            }
             if (await Bun.password.verify(password, result.passwordHash)) {
                 body = { ...result }
             } else {
-                return this.serve403()
+                return this.serve400('invalid username/password')
             }
-        } else {
+        } else if (signingUp) {
             const uuid = this.db.newAccount(username, await Bun.password.hash(password))
             body = { uuid }
+        } else {
+            return this.serve400('invalid username/password')
         }
         return Response.json(body)
     }

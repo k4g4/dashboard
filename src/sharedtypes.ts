@@ -2,6 +2,12 @@
 
 import { validate } from 'uuid'
 
+export type ApiError = { error: string }
+
+export function isApiError(body: any): body is ApiError {
+    return ('error' in body && typeof body.error === 'string')
+}
+
 export type Uuid = string & { readonly __tag: unique symbol }
 
 export function isUuid(uuid: string | null): uuid is Uuid {
@@ -28,13 +34,13 @@ export const LOGIN_ENDPOINT = 'login'
 
 export const MAX_USERNAME_LEN = 20
 export const MAX_PASSWORD_LEN = 20
-export const MIN_USERNAME_LEN = 5
-export const MIN_PASSWORD_LEN = 5
-export type LoginBody = { username: string, password: string }
+export const MIN_LEN = 5
+export type LoginBody = { username: string, password: string, signingUp: boolean }
 
 export function isLoginBody(body: any): body is LoginBody {
     return ('username' in body && typeof body.username === 'string'
-        && body.username.length <= MAX_USERNAME_LEN && body.username.length >= MIN_USERNAME_LEN
+        && body.username.length <= MAX_USERNAME_LEN && body.username.length >= MIN_LEN
         && 'password' in body && typeof body.password === 'string'
-        && body.password.length <= MAX_PASSWORD_LEN && body.password.length >= MIN_PASSWORD_LEN)
+        && body.password.length <= MAX_PASSWORD_LEN && body.password.length >= MIN_LEN
+        && 'signingUp' in body && typeof body.signingUp === 'boolean')
 }

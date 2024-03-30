@@ -6,7 +6,9 @@
     --blue-gray: #586683;
     --light-purp: #8975ff;
     --dark-purp: #5b3fff;
+    --darker-purp: #4f31f8;
     --nav-height: 90px;
+    --warning: #941a1a;
 }
 
 body {
@@ -132,8 +134,9 @@ nav {
 .login-fields label {
     margin-left: 20px;
     text-align: right;
-    font-size: 20px;
+    font-size: 18px;
     align-self: center;
+    margin-bottom: 2px;
 }
 
 .login-fields input {
@@ -151,8 +154,38 @@ nav {
     border-radius: 15px;
     font-size: 20px;
     font-weight: semi-bold;
-    background-color: var(--dark-purp);
     border: 0;
     margin-left: 10px;
     margin-right: 5px;
+    background-color: var(--dark-purp);
+}
+
+.login-button:hover {
+    background-color: var(--darker-purp);
+}
+
+@keyframes fade-out {
+    from {
+        color: var(--egg-white);
+        background-color: var(--warning);
+    }
+
+    to {
+        color: rgba(0, 0, 0, 0);
+        background-color: rgba(0, 0, 0, 0);
+    }
+}
+
+.error-banner {
+    animation: fade-out 1s 2s forwards;
+    color: var(--egg-white);
+    background-color: var(--warning);
+    position: absolute;
+    top: 40px;
+    left: calc(50% - 200px);
+    width: 400px;
+    height: 75px;
+    text-align: center;
+    align-self: center;
+    border-radius: 10px;
 }
