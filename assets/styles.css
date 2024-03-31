@@ -42,6 +42,10 @@ a {
 nav {
     background-color: var(--near-black);
     border-bottom: 2px solid var(--light-purp);
+    position: fixed;
+    z-index: 1;
+    width: 100%;
+    top: 0;
 }
 
 .nav {
@@ -89,11 +93,20 @@ nav {
     visibility: visible;
 }
 
-.page-container {
-    margin: 100px;
+.logout-icon {
+    position: absolute;
+    cursor: pointer;
+    fill: var(--light-purp);
 }
 
-.logout-icon {
+nav .logout-icon {
+    height: calc(var(--nav-height) - 40px);
+    width: calc(var(--nav-height) - 40px);
+    top: 18px;
+    left: calc(100% - (var(--nav-height) - 40px) - 20px);
+}
+
+.hamburger-icon {
     position: absolute;
     height: calc(var(--nav-height) - 40px);
     width: calc(var(--nav-height) - 40px);
@@ -101,6 +114,93 @@ nav {
     left: calc(100% - (var(--nav-height) - 40px) - 20px);
     cursor: pointer;
     fill: var(--light-purp);
+    display: none;
+}
+
+@keyframes fly-in {
+    from {
+        left: 100%;
+    }
+
+    to {
+        left: 40%;
+    }
+}
+
+@keyframes fly-out {
+    from {
+        left: 40%;
+    }
+
+    to {
+        left: 100%;
+    }
+}
+
+.menu {
+    position: fixed;
+    z-index: 1;
+    top: calc(var(--nav-height) + 2px);
+    height: calc(100% - (var(--nav-height)));
+    width: 60%;
+    background-color: var(--near-black);
+    display: none;
+}
+
+.menu.init {
+    display: none;
+}
+
+.menu.show {
+    left: 40%;
+    animation: fly-in 0.2s;
+}
+
+.menu.hide {
+    left: 100%;
+    animation: fly-out 0.2s;
+}
+
+@media (max-width: 900px) {
+    .nav .nav-item {
+        display: none;
+    }
+
+    nav .logout-icon {
+        display: none;
+    }
+
+    .menu {
+        display: block;
+        border-left: 2px solid var(--light-purp);
+    }
+
+    .menu .nav-item {
+        font-size: 30px;
+        height: 90px;
+        text-align: right;
+    }
+
+    .menu .logout-icon {
+        display: block;
+        top: calc(100% - (var(--nav-height) - 10px) - 20px);
+        left: calc(100% - (var(--nav-height) - 10px) - 20px);
+        height: calc(var(--nav-height) - 10px);
+        width: calc(var(--nav-height) - 10px);
+    }
+
+    .hamburger-icon {
+        display: block;
+    }
+
+    .page-container.dim {
+        opacity: 0.1;
+    }
+}
+
+.page-container {
+    margin: 100px;
+    margin-top: calc(var(--nav-height) + 100px);
 }
 
 .drop-shadow {
