@@ -1,4 +1,4 @@
-import { closeSync, openSync } from 'node:fs'
+import { closeSync, openSync, mkdirSync } from 'node:fs'
 import { Database } from 'bun:sqlite'
 import { isUuid, type Uuid } from './sharedtypes'
 import { v4 as generateUuid } from 'uuid'

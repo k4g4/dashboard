@@ -110,7 +110,7 @@ nav .logout-icon {
     position: absolute;
     height: calc(var(--nav-height) - 40px);
     width: calc(var(--nav-height) - 40px);
-    top: 18px;
+    top: 15px;
     left: calc(100% - (var(--nav-height) - 40px) - 20px);
     cursor: pointer;
     fill: var(--light-purp);
@@ -123,13 +123,13 @@ nav .logout-icon {
     }
 
     to {
-        left: 40%;
+        left: calc(100% - 300px);
     }
 }
 
 @keyframes fly-out {
     from {
-        left: 40%;
+        left: calc(100% - 300px);
     }
 
     to {
@@ -142,7 +142,7 @@ nav .logout-icon {
     z-index: 1;
     top: calc(var(--nav-height) + 2px);
     height: calc(100% - (var(--nav-height)));
-    width: 60%;
+    width: 300px;
     background-color: var(--near-black);
     display: none;
 }
@@ -152,7 +152,7 @@ nav .logout-icon {
 }
 
 .menu.show {
-    left: 40%;
+    left: calc(100% - 300px);
     animation: fly-in 0.2s;
 }
 
@@ -200,7 +200,7 @@ nav .logout-icon {
 
 .page-container {
     margin: 100px;
-    margin-top: calc(var(--nav-height) + 100px);
+    margin-top: calc(var(--nav-height) + 60px);
 }
 
 .drop-shadow {
