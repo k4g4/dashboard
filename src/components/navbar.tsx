@@ -44,14 +44,12 @@ function Logout() {
     )
 
     const uuid = useContext(UuidContext)
-    const onLogout = () => {
-        fetch(`/api/${LOGOUT_ENDPOINT}?${UUID_PARAM}=${uuid}`)
-            .then(response => {
-                if (response.status === 200) {
-                    localStorage.removeItem(STORAGE_UUID_KEY)
-                    window.location.href = '/'
-                }
-            })
+    const onLogout = async () => {
+        const response = await fetch(`/api/${LOGOUT_ENDPOINT}?${UUID_PARAM}=${uuid}`)
+        if (response.status === 200) {
+            localStorage.removeItem(STORAGE_UUID_KEY)
+            window.location.href = '/'
+        }
     }
 
     return (

@@ -14,7 +14,7 @@ import {
 } from '../sharedtypes'
 
 const UNKNOWN_ERROR = 'an unknown error has occurred'
-const FADE_OUT_TIME = 3_000
+const FADE_OUT_TIME = 2_500
 
 export function Login({ setUuid }: { setUuid: Dispatch<SetStateAction<Uuid | null>> }) {
 
@@ -44,10 +44,10 @@ export function Login({ setUuid }: { setUuid: Dispatch<SetStateAction<Uuid | nul
         <GoogleOAuthProvider clientId={env('GOOGLE_CLIENT_ID')}>
             {
                 errorTimer &&
-                <div className='error-banner'>
-                    <h3>
+                <div className='error-banner drop-shadow'>
+                    <p>
                         {`Error: ${error}.`}
-                    </h3>
+                    </p>
                 </div>
             }
             <LoginPanel updateError={updateError} setUuid={setUuid} />
@@ -126,7 +126,7 @@ function LoginPanel({ updateError, setUuid }: LoginPanelProps) {
 
     return (
         <form onSubmit={onSubmit}>
-            <div className='login-panel'>
+            <div className='login-panel drop-shadow'>
                 <h1>Log In</h1>
                 <div className='login-fields'>
                     <label>Username</label>
