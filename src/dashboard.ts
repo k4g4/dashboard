@@ -1,8 +1,9 @@
 import { readdirSync, mkdirSync, statSync } from 'node:fs'
-import { stat } from 'node:fs/promises'
+import { opendir, mkdir, stat, unlink } from 'node:fs/promises'
 import { Db } from './database'
 import {
-    GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT, isLoginBody, isUuid, LOGIN_ENDPOINT, LOGOUT_ENDPOINT,
+    DELETE_GALLERY_ENDPOINT, LOGIN_ENDPOINT, LOGOUT_ENDPOINT, UPLOAD_GALLERY_ENDPOINT,
+    GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT, IMAGE_NAME_PARAM, isUuid, LIST_GALLERY_ENDPOINT,
     UUID_PARAM, type ApiError, type LoginBody, type LoginResponse, type Uuid
 } from './sharedtypes'
 
@@ -14,14 +15,7 @@ const SRC = 'src'
 const PAGE_SCRIPTS = `${SRC}/scripts`
 const PAGES = 'pages'
 const ASSETS = 'assets'
-
-type Get = URLSearchParams
-type Post = { json: unknown }
-type ApiRequest = Get | Post
-
-function isGet(req: Get | Post): req is Get {
-    return req instanceof URLSearchParams
-}
+const DATA = 'data'
 
 export class Dashboard {
     scripts: Map<string, number>
@@ -51,8 +45,11 @@ export class Dashboard {
         if (pathname.startsWith('/api')) {
             // trim off /api/
             const endpoint = pathname.slice(5)
-            const apiReq = method === 'GET' ? searchParams : { json: await req.json() }
-            return await this.serveApi(endpoint, apiReq)
+            if (method === 'GET') {
+                return await this.serveGetApi(endpoint, searchParams)
+            } else {
+                return await this.servePostApi(endpoint, req)
+            }
         }
 
         if (method === 'GET') {
@@ -60,7 +57,11 @@ export class Dashboard {
                 return await this.fetchScript(pathname)
             }
 
-            if (['.ico', '.png', '.css'].some(ext => pathname.endsWith(ext))) {
+            if (pathname.startsWith(`/${DATA}`)) {
+                return await this.fetchData(pathname)
+            }
+
+            if (['.ico', '.png', '.css', '.jpg'].some(ext => pathname.endsWith(ext))) {
                 return await this.fetchAsset(pathname);
             }
 
@@ -78,30 +79,66 @@ export class Dashboard {
         return this.serve404()
     }
 
-    async serveApi(endpoint: string, req: ApiRequest) {
-        if (isGet(req)) {
-            switch (endpoint) {
-                case GOOGLE_LOGIN_ENDPOINT:
-                    return await this.googleLogin(req.get(GOOGLE_ID_PARAM))
+    async serveGetApi(endpoint: string, searchParams: URLSearchParams) {
+        switch (endpoint) {
+            case GOOGLE_LOGIN_ENDPOINT: {
+                return await this.googleLogin(searchParams.get(GOOGLE_ID_PARAM))
+            }
 
-                case LOGOUT_ENDPOINT:
-                    const uuid = req.get(UUID_PARAM)
-                    if (isUuid(uuid)) {
-                        return await this.logout(uuid)
-                    }
+            case LOGOUT_ENDPOINT: {
+                const uuid = searchParams.get(UUID_PARAM)
+                if (isUuid(uuid)) {
+                    return await this.logout(uuid)
+                }
+                return this.serve400('no uuid provided')
+            }
+
+            case LIST_GALLERY_ENDPOINT: {
+                const uuid = searchParams.get(UUID_PARAM)
+                if (isUuid(uuid)) {
+                    return await this.listGallery(uuid)
+                }
+                return this.serve400('no uuid provided')
+            }
+
+            case DELETE_GALLERY_ENDPOINT: {
+                const uuid = searchParams.get(UUID_PARAM)
+                if (!isUuid(uuid)) {
                     return this.serve400('no uuid provided')
+                }
+                const name = searchParams.get(IMAGE_NAME_PARAM)
+                if (!name) {
+                    return this.serve400('no image name provided')
+                }
+                return await this.deleteGallery(uuid, name)
             }
-            return this.serve404()
-        } else {
-            switch (endpoint) {
-                case LOGIN_ENDPOINT:
-                    if (isLoginBody(req.json)) {
-                        return await this.login(req.json)
-                    }
-                    return this.serve400('invalid login json body')
-            }
-            return this.serve404()
         }
+        return this.serve404()
+    }
+
+    async servePostApi(endpoint: string, req: Request) {
+        switch (endpoint) {
+            case LOGIN_ENDPOINT: {
+                let json
+                try {
+                    json = await req.json()
+                } catch {
+                    return this.serve400('invalid json body')
+                }
+                return await this.login(json)
+            }
+
+            case UPLOAD_GALLERY_ENDPOINT: {
+                let formData
+                try {
+                    formData = await req.formData()
+                } catch {
+                    return this.serve400('invalid form data')
+                }
+                return await this.uploadGallery(formData)
+            }
+        }
+        return this.serve404()
     }
 
     async fetchScript(pathname: string) {
@@ -128,6 +165,11 @@ export class Dashboard {
         return new Response(Bun.file(`${BUILD_DIR}/${builtScriptName}`))
     }
 
+    async fetchData(data: string) {
+        const path = data.slice(1) // strip leading /
+        return new Response(Bun.file(path))
+    }
+
     async fetchAsset(asset: string) {
         return new Response(Bun.file(`${ASSETS}${asset}`))
     }
@@ -139,10 +181,6 @@ export class Dashboard {
         } else {
             return this.serve404()
         }
-    }
-
-    serve200() {
-        return new Response(null, { status: 200 })
     }
 
     serve400(error: string) {
@@ -193,7 +231,51 @@ export class Dashboard {
 
     async logout(uuid: Uuid) {
         this.db.setUserLogout(uuid)
-        return this.serve200()
+        return new Response()
+    }
+
+    async listGallery(uuid: Uuid) {
+        const dir = `${DATA}/${uuid}`
+        await mkdir(dir, { recursive: true })
+
+        let files: { mtimeMs: number, path: string }[] = []
+        for await (const { name } of await opendir(dir)) {
+            const path = `${dir}/${name}`
+            const { mtimeMs } = await stat(path)
+            files.push({ mtimeMs, path })
+        }
+        files.sort((left, right) => right.mtimeMs - left.mtimeMs)
+
+        return Response.json(files.map(({ path }) => path))
+    }
+
+    async uploadGallery(formData: FormData) {
+        const uuid = formData.get('uuid')
+        if (typeof uuid !== 'string' || !isUuid(uuid)) {
+            return this.serve400('invalid uuid')
+        }
+        const dir = `${DATA}/${uuid}`
+
+        let files: File[] = []
+        formData.forEach(file => {
+            if (file instanceof File) {
+                files.push(file)
+            }
+        })
+
+        for (const file of files) {
+            await Bun.write(`${dir}/${file.name}`, file)
+        }
+        return new Response()
+    }
+
+    async deleteGallery(uuid: Uuid, name: string) {
+        try {
+            await unlink(`${DATA}/${uuid}/${name}`)
+        } catch {
+            return this.serve400('unknown file')
+        }
+        return new Response()
     }
 
     serve() {

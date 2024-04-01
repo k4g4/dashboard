@@ -39,18 +39,16 @@ export function Login({ setUuid }: { setUuid: Dispatch<SetStateAction<Uuid | nul
         setErrorTimer(setTimeout(() => setErrorTimer(undefined), FADE_OUT_TIME))
     }
 
-
     return (
         <GoogleOAuthProvider clientId={env('GOOGLE_CLIENT_ID')}>
+            <LoginPanel updateError={updateError} setUuid={setUuid} />
             {
                 errorTimer &&
                 <div className='error-banner drop-shadow'>
-                    <p>
-                        {`Error: ${error}.`}
-                    </p>
+                    <h3>Error</h3>
+                    <p>{error.slice(0, 1).toUpperCase() + error.slice(1) + '.'}</p>
                 </div>
             }
-            <LoginPanel updateError={updateError} setUuid={setUuid} />
         </GoogleOAuthProvider>
     )
 }
@@ -137,8 +135,8 @@ function LoginPanel({ updateError, setUuid }: LoginPanelProps) {
                     <input style={showOnSignUp} type='password' value={password2} onChange={onPassword2Change} />
                 </div>
                 <div>
-                    <button className='login-button' type='submit'>{leftButtonLabel}</button>
-                    <button className='login-button' onClick={onSignUpToggle}>{rightButtonLabel}</button>
+                    <button className='button login-button' type='submit'>{leftButtonLabel}</button>
+                    <button className='button login-button' onClick={onSignUpToggle}>{rightButtonLabel}</button>
                 </div>
                 <GoogleLoginButton updateError={updateError} setUuid={setUuid} />
             </div>

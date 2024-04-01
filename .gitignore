@@ -4,6 +4,7 @@ build/
 deploy.sh
 dashboard
 db/*.sqlite
+data/*
 
 ### BUN IGNORES ###
 

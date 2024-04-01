@@ -44,3 +44,17 @@ export function isLoginBody(body: any): body is LoginBody {
         && body.password.length <= MAX_PASSWORD_LEN && body.password.length >= MIN_LEN
         && 'signingUp' in body && typeof body.signingUp === 'boolean')
 }
+
+export const LIST_GALLERY_ENDPOINT = 'listgallery'
+
+export type ListGalleryResponse = string[]
+
+export function isListGalleryResponse(body: any): body is ListGalleryResponse {
+    return Array.isArray(body) && body.every(image => typeof image === 'string')
+}
+
+export const UPLOAD_GALLERY_ENDPOINT = 'uploadgallery'
+
+export const DELETE_GALLERY_ENDPOINT = 'deletegallery'
+
+export const IMAGE_NAME_PARAM = 'name'
