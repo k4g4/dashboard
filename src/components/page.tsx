@@ -1,6 +1,7 @@
 import React, { createContext, useEffect, useState, type PropsWithChildren } from 'react'
 import { Navbar } from './navbar'
 import { Login } from './login'
+import { ErrorProvider } from './error'
 import { NIL } from 'uuid'
 import { isUuid, type Uuid } from '../sharedtypes'
 
@@ -21,17 +22,19 @@ export function Page({ children, pageName }: PropsWithChildren<{ pageName: PageN
 
     return (
         <React.StrictMode>
-            {
-                uuid ?
-                    <UuidContext.Provider value={uuid}>
-                        <Navbar pageName={pageName} setDim={setDim} />
-                        <div className={dim ? 'page-container dim' : 'page-container'}>
-                            {children}
-                        </div>
-                    </UuidContext.Provider>
-                    :
-                    <Login setUuid={setUuid} />
-            }
+            <ErrorProvider>
+                {
+                    uuid ?
+                        <UuidContext.Provider value={uuid}>
+                            <Navbar pageName={pageName} setDim={setDim} />
+                            <div className={dim ? 'page-container dim' : 'page-container'}>
+                                {children}
+                            </div>
+                        </UuidContext.Provider>
+                        :
+                        <Login setUuid={setUuid} />
+                }
+            </ErrorProvider>
         </React.StrictMode>
     )
 }

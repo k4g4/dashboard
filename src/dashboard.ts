@@ -226,6 +226,7 @@ export class Dashboard {
         } else {
             return this.serve400('invalid username/password')
         }
+
         return Response.json(body)
     }
 
@@ -266,6 +267,7 @@ export class Dashboard {
         for (const file of files) {
             await Bun.write(`${dir}/${file.name}`, file)
         }
+
         return new Response()
     }
 
@@ -275,6 +277,7 @@ export class Dashboard {
         } catch {
             return this.serve400('unknown file')
         }
+
         return new Response()
     }
 

@@ -2,9 +2,10 @@ import ReactDOM from 'react-dom/client'
 import { Page, UuidContext } from '../components/page'
 import { useContext, useState, type Dispatch, type MouseEvent, type SetStateAction } from 'react'
 import { useAsyncEffect } from 'use-async-effect'
-import { DELETE_GALLERY_ENDPOINT, IMAGE_NAME_PARAM, isListGalleryResponse, LIST_GALLERY_ENDPOINT, UPLOAD_GALLERY_ENDPOINT, UUID_PARAM } from '../sharedtypes'
+import { DELETE_GALLERY_ENDPOINT, IMAGE_NAME_PARAM, isApiError, isListGalleryResponse, LIST_GALLERY_ENDPOINT, UPLOAD_GALLERY_ENDPOINT, UUID_PARAM } from '../sharedtypes'
 import { ICONS } from '../components/icons'
 import { unstable_getCurrentPriorityLevel } from '../../build/home'
+import { UpdateErrorContext } from '../components/error'
 
 ReactDOM.createRoot(document.getElementById(`root`)!).render(
     <Page pageName='home'>
@@ -15,6 +16,9 @@ ReactDOM.createRoot(document.getElementById(`root`)!).render(
 type Dir = 'left' | 'right'
 
 function Gallery() {
+    const uuid = useContext(UuidContext)
+    const updateError = useContext(UpdateErrorContext)
+
     const [images, setImages] = useState<string[]>([])
     const [imageIndex, setImageIndex] = useState(0)
     const [fullscreen, setFullscreen] = useState(false)
@@ -28,12 +32,17 @@ function Gallery() {
         setImageIndex(index => (index + 1) % images.length)
     }
 
-    const uuid = useContext(UuidContext)
     useAsyncEffect(async isMounted => {
         const response = await fetch(`/api/${LIST_GALLERY_ENDPOINT}?${UUID_PARAM}=${uuid}`)
         const body = await response.json()
-        if (isMounted() && isListGalleryResponse(body)) {
-            setImages(body)
+        if (isMounted()) {
+            if (isListGalleryResponse(body)) {
+                setImages(body)
+            } else if (isApiError(body)) {
+                updateError(body.error)
+            } else {
+                updateError()
+            }
         }
     }, [reload])
 
@@ -51,6 +60,8 @@ function Gallery() {
                 for (let i = 0; i < max; i++) {
                     body.append(`image_${i}`, uploader.files[i])
                 }
+            } else {
+                updateError('no files provided')
             }
 
             const response = await fetch(`/api/${UPLOAD_GALLERY_ENDPOINT}`, { method: 'POST', body })
@@ -58,7 +69,15 @@ function Gallery() {
                 setImageIndex(0)
                 setReload(reload => !reload)
             } else {
-                //
+                try {
+                    const body = await response.json()
+                    if (isApiError(body)) {
+                        updateError(body.error)
+                        return
+                    }
+                } catch {
+                }
+                updateError()
             }
         })
 
@@ -67,7 +86,7 @@ function Gallery() {
 
     const onDelete = async () => {
         if (!images.length) {
-            //
+            updateError('no image to delete')
             return
         }
         const name = images[imageIndex].slice(images[imageIndex].lastIndexOf('/') + 1)
@@ -77,7 +96,15 @@ function Gallery() {
             setImageIndex(0)
             setReload(reload => !reload)
         } else {
-            //
+            try {
+                const body = await response.json()
+                if (isApiError(body)) {
+                    updateError(body.error)
+                    return
+                }
+            } catch {
+            }
+            updateError()
         }
     }
 

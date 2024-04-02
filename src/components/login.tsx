@@ -4,6 +4,7 @@ import {
     useState, type ChangeEvent, type Dispatch,
     type FormEvent, type SetStateAction, type MouseEvent,
     type CSSProperties,
+    useContext,
 } from 'react'
 import { jwtDecode } from 'jwt-decode'
 import {
@@ -12,53 +13,13 @@ import {
     isLoginBody, isLoginResponse, LOGIN_ENDPOINT, MAX_PASSWORD_LEN, MAX_USERNAME_LEN, MIN_LEN,
     type Uuid
 } from '../sharedtypes'
+import { UpdateErrorContext } from './error'
 
-const UNKNOWN_ERROR = 'an unknown error has occurred'
-const FADE_OUT_TIME = 2_500
+type LoginProps = { setUuid: Dispatch<SetStateAction<Uuid | null>> }
 
-export function Login({ setUuid }: { setUuid: Dispatch<SetStateAction<Uuid | null>> }) {
+export function Login({ setUuid }: LoginProps) {
+    const updateError = useContext(UpdateErrorContext)
 
-    const [error, setError] = useState('')
-    const [errorTimer, setErrorTimer] = useState<Timer>()
-
-    const updateError = (error: string) => {
-        setError(error)
-
-        // if there's already an error banner, reset its animation
-        const errorBanner = document.querySelector('.error-banner')
-        if (errorBanner) {
-            for (const animation of errorBanner.getAnimations()) {
-                animation.cancel()
-                animation.play()
-            }
-        }
-
-        if (errorTimer) {
-            clearTimeout(errorTimer)
-        }
-        setErrorTimer(setTimeout(() => setErrorTimer(undefined), FADE_OUT_TIME))
-    }
-
-    return (
-        <GoogleOAuthProvider clientId={env('GOOGLE_CLIENT_ID')}>
-            <LoginPanel updateError={updateError} setUuid={setUuid} />
-            {
-                errorTimer &&
-                <div className='error-banner drop-shadow'>
-                    <h3>Error</h3>
-                    <p>{error.slice(0, 1).toUpperCase() + error.slice(1) + '.'}</p>
-                </div>
-            }
-        </GoogleOAuthProvider>
-    )
-}
-
-type LoginPanelProps = {
-    updateError: (error: string) => void,
-    setUuid: Dispatch<SetStateAction<Uuid | null>>,
-}
-
-function LoginPanel({ updateError, setUuid }: LoginPanelProps) {
     const [signingUp, setSigningUp] = useState(false)
 
     const onSignUpToggle = (event: MouseEvent<HTMLButtonElement>) => {
@@ -111,7 +72,7 @@ function LoginPanel({ updateError, setUuid }: LoginPanelProps) {
             if (isLoginResponse(body)) {
                 setUuid(body.uuid)
             } else {
-                updateError(UNKNOWN_ERROR)
+                updateError()
             }
         } else if (isApiError(body)) {
             updateError(body.error)
@@ -123,29 +84,32 @@ function LoginPanel({ updateError, setUuid }: LoginPanelProps) {
     const showOnSignUp: CSSProperties = signingUp ? {} : { visibility: 'hidden' }
 
     return (
-        <form onSubmit={onSubmit}>
-            <div className='login-panel drop-shadow'>
-                <h1>Log In</h1>
-                <div className='login-fields'>
-                    <label>Username</label>
-                    <input value={username} onChange={onUsernameChange} />
-                    <label>Password</label>
-                    <input type='password' value={password} onChange={onPasswordChange} />
-                    <label style={showOnSignUp}>Retype Password</label>
-                    <input style={showOnSignUp} type='password' value={password2} onChange={onPassword2Change} />
+        <GoogleOAuthProvider clientId={env('GOOGLE_CLIENT_ID')}>
+            <form onSubmit={onSubmit}>
+                <div className='login-panel drop-shadow'>
+                    <h1>Log In</h1>
+                    <div className='login-fields'>
+                        <label>Username</label>
+                        <input value={username} onChange={onUsernameChange} />
+                        <label>Password</label>
+                        <input type='password' value={password} onChange={onPasswordChange} />
+                        <label style={showOnSignUp}>Retype Password</label>
+                        <input style={showOnSignUp} type='password' value={password2} onChange={onPassword2Change} />
+                    </div>
+                    <div>
+                        <button className='button login-button' type='submit'>{leftButtonLabel}</button>
+                        <button className='button login-button' onClick={onSignUpToggle}>{rightButtonLabel}</button>
+                    </div>
+                    <GoogleLoginButton setUuid={setUuid} />
                 </div>
-                <div>
-                    <button className='button login-button' type='submit'>{leftButtonLabel}</button>
-                    <button className='button login-button' onClick={onSignUpToggle}>{rightButtonLabel}</button>
-                </div>
-                <GoogleLoginButton updateError={updateError} setUuid={setUuid} />
-            </div>
-        </form>
-
+            </form>
+        </GoogleOAuthProvider>
     )
 }
 
-function GoogleLoginButton({ updateError, setUuid }: LoginPanelProps) {
+function GoogleLoginButton({ setUuid }: LoginProps) {
+    const updateError = useContext(UpdateErrorContext)
+
     const onGoogleLoginSuccess = async ({ credential }: CredentialResponse) => {
         if (!credential) {
             updateError('failed to log in with Google')
@@ -154,7 +118,7 @@ function GoogleLoginButton({ updateError, setUuid }: LoginPanelProps) {
 
         const sub = jwtDecode(credential).sub
         if (!sub) {
-            updateError(UNKNOWN_ERROR)
+            updateError()
             return
         }
 
@@ -164,7 +128,7 @@ function GoogleLoginButton({ updateError, setUuid }: LoginPanelProps) {
             if (isLoginResponse(body)) {
                 setUuid(body.uuid)
             } else {
-                updateError(UNKNOWN_ERROR)
+                updateError()
             }
         } else if (isApiError(body)) {
             updateError(body.error)
