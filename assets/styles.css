@@ -289,8 +289,8 @@ nav .logout-icon {
     animation: fade-out 0.5s 2s forwards;
     color: var(--egg-white);
     background-color: var(--warning);
-    position: absolute;
-    top: calc(50% + 250px);
+    position: fixed;
+    bottom: 120px;
     left: calc(50% - 200px);
     width: var(--login-width);
     text-align: center;
@@ -307,4 +307,14 @@ nav .logout-icon {
     padding: 2px;
     margin-left: 2px;
     margin-right: 2px;
+}
+
+.section {
+    padding: 20px 50px 150px;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: right;
 }

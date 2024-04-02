@@ -49,7 +49,7 @@ export function Login({ setUuid }: LoginProps) {
     const onPasswordChange = newOnFieldChange(setPassword, MAX_PASSWORD_LEN, /^[^ ]*$/)
     const onPassword2Change = newOnFieldChange(setPassword2, MAX_PASSWORD_LEN, /^[A-Za-z0-9_]*$/)
 
-    const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    const onSubmit = async (event: FormEvent) => {
         event.preventDefault()
 
         if (signingUp) {

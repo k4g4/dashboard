@@ -1,18 +1,7 @@
-.gallery {
-    padding: 50px;
-    padding-top: 20px;
-}
-
 @media (max-width: 900px) {
     .gallery {
         display: none;
     }
-}
-
-.gallery-header {
-    display: flex;
-    align-items: center;
-    justify-content: right;
 }
 
 .upload-button {
@@ -23,6 +12,7 @@
 }
 
 .upload-button svg {
+    padding-top: 1px;
     height: 20px;
     fill: var(--egg-white);
 }
@@ -103,4 +93,43 @@ input[type="file"] {
 
 .image-index {
     text-align: center;
+}
+
+.bio {
+    font-size: 20px;
+}
+
+.update-bio-button {
+    width: 45px;
+    height: 35px;
+}
+
+.update-bio-button svg {
+    height: 20px;
+    fill: var(--egg-white);
+}
+
+.bio-editor {
+    display: flex;
+    flex-direction: column;
+    margin: 30px;
+}
+
+.bio-editor-field {
+    width: 80%;
+    min-width: 30%;
+    max-width: 100%;
+    min-height: 80px;
+    max-height: 300px;
+    background-color: var(--near-black);
+    border: none;
+    border-radius: 15px;
+    font-size: 16px;
+    color: var(--egg-white);
+}
+
+.bio-submit-button {
+    width: 90px;
+    height: 45px;
+    margin-top: 30px;
 }

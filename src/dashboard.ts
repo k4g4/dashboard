@@ -4,7 +4,12 @@ import { Db } from './database'
 import {
     DELETE_GALLERY_ENDPOINT, LOGIN_ENDPOINT, LOGOUT_ENDPOINT, UPLOAD_GALLERY_ENDPOINT,
     GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT, IMAGE_NAME_PARAM, isUuid, LIST_GALLERY_ENDPOINT,
-    UUID_PARAM, type ApiError, type LoginBody, type LoginResponse, type Uuid
+    UUID_PARAM, type ApiError, type LoginBody, type LoginResponse, type Uuid,
+    BIO_ENDPOINT,
+    type BioResponse,
+    isLoginBody,
+    isBioBody,
+    type BioBody
 } from './sharedtypes'
 
 const BUILD_DIR = Bun.env.BUILD_DIR ?? 'build'
@@ -112,6 +117,14 @@ export class Dashboard {
                 }
                 return await this.deleteGallery(uuid, name)
             }
+
+            case BIO_ENDPOINT: {
+                const uuid = searchParams.get(UUID_PARAM)
+                if (!isUuid(uuid)) {
+                    return this.serve400('no uuid provided')
+                }
+                return await this.getBio(uuid)
+            }
         }
         return this.serve404()
     }
@@ -125,7 +138,11 @@ export class Dashboard {
                 } catch {
                     return this.serve400('invalid json body')
                 }
-                return await this.login(json)
+                if (isLoginBody(json)) {
+                    return await this.login(json)
+                } else {
+                    return this.serve400('invalid login body')
+                }
             }
 
             case UPLOAD_GALLERY_ENDPOINT: {
@@ -136,6 +153,20 @@ export class Dashboard {
                     return this.serve400('invalid form data')
                 }
                 return await this.uploadGallery(formData)
+            }
+
+            case BIO_ENDPOINT: {
+                let json
+                try {
+                    json = await req.json()
+                } catch {
+                    return this.serve400('invalid json body')
+                }
+                if (isBioBody(json)) {
+                    return await this.setBio(json)
+                } else {
+                    return this.serve400('invalid bio body')
+                }
             }
         }
         return this.serve404()
@@ -278,6 +309,21 @@ export class Dashboard {
             return this.serve400('unknown file')
         }
 
+        return new Response()
+    }
+
+    async getBio(uuid: Uuid) {
+        const result = this.db.getUserBio(uuid)
+        if (result) {
+            const body: BioResponse = { bio: result }
+            return Response.json(body)
+        } else {
+            return this.serve404()
+        }
+    }
+
+    async setBio({ uuid, bio }: BioBody) {
+        this.db.setUserBio(uuid, bio)
         return new Response()
     }
 

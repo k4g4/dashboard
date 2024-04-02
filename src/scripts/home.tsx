@@ -1,19 +1,113 @@
 import ReactDOM from 'react-dom/client'
 import { Page, UuidContext } from '../components/page'
-import { useContext, useState, type Dispatch, type MouseEvent, type SetStateAction } from 'react'
+import { useContext, useState, type ChangeEvent, type Dispatch, type FormEvent, type MouseEvent, type SetStateAction } from 'react'
 import { useAsyncEffect } from 'use-async-effect'
-import { DELETE_GALLERY_ENDPOINT, IMAGE_NAME_PARAM, isApiError, isListGalleryResponse, LIST_GALLERY_ENDPOINT, UPLOAD_GALLERY_ENDPOINT, UUID_PARAM } from '../sharedtypes'
+import { BIO_ENDPOINT, DELETE_GALLERY_ENDPOINT, IMAGE_NAME_PARAM, isApiError, isBioResponse, isListGalleryResponse, LIST_GALLERY_ENDPOINT, UPLOAD_GALLERY_ENDPOINT, UUID_PARAM, type BioBody } from '../sharedtypes'
 import { ICONS } from '../components/icons'
 import { unstable_getCurrentPriorityLevel } from '../../build/home'
 import { UpdateErrorContext } from '../components/error'
 
 ReactDOM.createRoot(document.getElementById(`root`)!).render(
     <Page pageName='home'>
+        <Bio />
         <Gallery />
     </Page>
 )
 
 type Dir = 'left' | 'right'
+
+function Bio() {
+    const uuid = useContext(UuidContext)
+    const updateError = useContext(UpdateErrorContext)
+
+    const [bio, setBio] = useState<string>()
+    const [editing, setEditing] = useState(false)
+    const [reload, setReload] = useState(false)
+
+    useAsyncEffect(async isMounted => {
+        const response = await fetch(`/api/${BIO_ENDPOINT}?${UUID_PARAM}=${uuid}`)
+        if (response.status === 404) {
+            return
+        }
+        const body = await response.json()
+        if (isMounted()) {
+            if (isBioResponse(body)) {
+                setBio(body.bio)
+            } else if (isApiError(body)) {
+                updateError(body.error)
+            } else {
+                updateError()
+            }
+        }
+    }, [reload])
+
+    const onUpdateBio = () => setEditing(editing => !editing)
+
+    const [newBio, setNewBio] = useState<string>()
+
+    const onBioChange = (event: ChangeEvent<HTMLTextAreaElement>) => setNewBio(event.target.value)
+
+    const onBioSubmit = async (event: FormEvent) => {
+        event.preventDefault()
+
+        const sanitizedBio = newBio ? newBio.replaceAll('\'', '\'\'') : bio ?? ''
+        const body: BioBody = { uuid, bio: sanitizedBio }
+        const response = await fetch(`/api/${BIO_ENDPOINT}`, { method: 'POST', body: JSON.stringify(body) })
+        if (response.status === 200) {
+            setEditing(false)
+            setReload(reload => !reload)
+        } else {
+            try {
+                const body = await response.json()
+                if (isApiError(body)) {
+                    updateError(body.error)
+                    return
+                }
+            } catch { }
+            updateError()
+        }
+    }
+
+    const formattedBio = (
+        bio ?
+            bio
+                .split('\n')
+                .map(line => (
+                    <>
+                        {line}
+                        <br />
+                    </>
+                ))
+            :
+            <i>No bio provided.</i>
+    )
+
+    return (
+        <div className='section'>
+            <h1>Bio</h1>
+            <div className='section-header bio-header'>
+                <button className='button update-bio-button' onClick={onUpdateBio}>{ICONS.EDIT}</button>
+            </div>
+            {
+                !editing ?
+                    <p className='bio'>{formattedBio}</p>
+                    :
+                    <form onSubmit={onBioSubmit}>
+                        <div className='bio-editor'>
+                            <textarea
+                                value={newBio ?? bio}
+                                className='bio-editor-field'
+                                onChange={onBioChange}
+                                placeholder={!newBio ? 'Say something about yourself...' : undefined}
+                            >
+                            </textarea>
+                            <button className='button bio-submit-button' type='submit'>Submit</button>
+                        </div>
+                    </form>
+            }
+        </div>
+    )
+}
 
 function Gallery() {
     const uuid = useContext(UuidContext)
@@ -75,8 +169,7 @@ function Gallery() {
                         updateError(body.error)
                         return
                     }
-                } catch {
-                }
+                } catch { }
                 updateError()
             }
         })
@@ -102,16 +195,15 @@ function Gallery() {
                     updateError(body.error)
                     return
                 }
-            } catch {
-            }
+            } catch { }
             updateError()
         }
     }
 
     return (
-        <div className='gallery'>
+        <div className='section gallery'>
             <h1>Gallery</h1>
-            <div className='gallery-header'>
+            <div className='section-header gallery-header'>
                 <input type='file' accept='image/*' multiple />
                 <button className='button upload-button' onClick={onUpload}>{ICONS.UPLOAD}</button>
                 <button className='button delete-button' onClick={onDelete}>{ICONS.XMARK}</button>

@@ -9,5 +9,8 @@
         "INSERT INTO accountCopy(username, passwordHash, userUuid) SELECT username, passwordHash, userUuid FROM account;",
         "DROP TABLE account;",
         "ALTER TABLE accountCopy RENAME TO account;"
+    ],
+    [
+        "CREATE TABLE userBio(userUuid CHARACTER(36) PRIMARY KEY, bio TEXT);"
     ]
 ]

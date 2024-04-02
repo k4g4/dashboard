@@ -58,3 +58,18 @@ export const UPLOAD_GALLERY_ENDPOINT = 'uploadgallery'
 export const DELETE_GALLERY_ENDPOINT = 'deletegallery'
 
 export const IMAGE_NAME_PARAM = 'name'
+
+export const BIO_ENDPOINT = 'bio'
+
+export type BioResponse = { bio: string }
+
+export function isBioResponse(body: any): body is BioResponse {
+    return 'bio' in body && typeof body.bio === 'string'
+}
+
+export type BioBody = { uuid: Uuid, bio: string }
+
+export function isBioBody(body: any): body is BioBody {
+    return ('bio' in body && typeof body.bio === 'string'
+        && 'uuid' in body && isUuid(body.uuid))
+}

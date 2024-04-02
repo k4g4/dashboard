@@ -73,4 +73,18 @@ export class Db {
     setUserLogout(uuid: Uuid) {
         this.db.exec(`UPDATE user SET loggedIn = FALSE WHERE userUuid = '${uuid}'`)
     }
+
+    getUserBio(uuid: Uuid) {
+        const query = `SELECT bio FROM userBio WHERE userUuid = '${uuid}'`
+        const result = this.db.query(query).get() as { bio: string } | null
+        return result?.bio
+    }
+
+    setUserBio(uuid: Uuid, body: string) {
+        const query = (
+            `INSERT INTO userBio(userUuid, bio) VALUES ('${uuid}', '${body}') ` +
+            'ON CONFLICT(userUuid) DO UPDATE SET bio=excluded.bio'
+        )
+        this.db.exec(query)
+    }
 }
