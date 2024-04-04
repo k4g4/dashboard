@@ -1,6 +1,7 @@
 import ReactDOM from 'react-dom/client'
 import { Page, UuidContext } from '../components/page'
 import {
+    Fragment,
     useContext, useState, type ChangeEvent, type Dispatch,
     type FormEvent, type MouseEvent, type SetStateAction
 } from 'react'
@@ -32,6 +33,7 @@ function Bio() {
     useAsyncEffect(async isMounted => {
         const response = await fetch(`/api/${BIO_ENDPOINT}?${UUID_PARAM}=${uuid}`)
         if (response.status === 404) {
+            updateError()
             return
         }
         const body = await response.json()
@@ -77,11 +79,11 @@ function Bio() {
         bio ?
             bio
                 .split('\n')
-                .map(line => (
-                    <>
+                .map((line, i) => (
+                    <Fragment key={i}>
                         {line}
                         <br />
-                    </>
+                    </Fragment>
                 ))
             :
             <i>No bio provided.</i>

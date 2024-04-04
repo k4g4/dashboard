@@ -1,6 +1,6 @@
 import ReactDOM from 'react-dom/client'
 import { Page, UuidContext } from '../components/page'
-import { useContext, useState, type CSSProperties } from 'react'
+import { useContext, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react'
 import {
     BANK_HISTORY_ENDPOINT, BANK_TRANSACT_ENDPOINT,
     isApiError, isBankHistoryResponse, isBankTransactResponse, UUID_PARAM, type BankTransactBody,
@@ -8,6 +8,7 @@ import {
 } from '../sharedtypes'
 import { UpdateErrorContext, type UpdateError } from '../components/error'
 import useAsyncEffect from 'use-async-effect'
+import moment, { type Moment } from 'moment'
 
 ReactDOM.createRoot(document.getElementById(`root`)!).render(
     <Page pageName='bank'>
@@ -19,17 +20,20 @@ function Bank() {
     const uuid = useContext(UuidContext)
     const updateError = useContext(UpdateErrorContext)
 
+    const [reload, setReload] = useState(false)
+
     return (
         <div className='bank'>
-            <Input uuid={uuid} updateError={updateError} />
-            <History uuid={uuid} updateError={updateError} />
+            <Input uuid={uuid} updateError={updateError} setReload={setReload} />
+            <History uuid={uuid} updateError={updateError} reload={reload} />
         </div >
     )
 }
 
 type InputType = 'unit' | 'tenth' | 'hundredth' | 'disabled'
 
-function Input({ uuid, updateError }: { uuid: Uuid, updateError: UpdateError }) {
+type InputProps = { uuid: Uuid, updateError: UpdateError, setReload: Dispatch<SetStateAction<boolean>> }
+function Input({ uuid, updateError, setReload }: InputProps) {
     const [amount, setAmount] = useState(0)
     const [inputType, setInputType] = useState<InputType>('unit')
     const [adding, setAdding] = useState(false);
@@ -39,7 +43,9 @@ function Input({ uuid, updateError }: { uuid: Uuid, updateError: UpdateError }) 
             if (typeof label === 'number') {
                 switch (inputType) {
                     case 'unit':
-                        setAmount(amount * 10 + label)
+                        if (amount < 10_000) {
+                            setAmount(amount * 10 + label)
+                        }
                         break
                     case 'tenth':
                         setAmount(amount + label / 10)
@@ -93,7 +99,7 @@ function Input({ uuid, updateError }: { uuid: Uuid, updateError: UpdateError }) 
                     const body = await response.json()
                     if (response.status === 200) {
                         if (isBankTransactResponse(body)) {
-                            console.log(body.newBalance)
+                            setReload(reload => !reload)
                         } else {
                             updateError()
                         }
@@ -151,9 +157,9 @@ function Input({ uuid, updateError }: { uuid: Uuid, updateError: UpdateError }) 
     )
 }
 
-type BankEntry = { balance: number, date: Date }
+type BankEntry = { balance: number, date: Moment }
 
-function History({ uuid, updateError }: { uuid: Uuid, updateError: UpdateError }) {
+function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: UpdateError, reload: boolean }) {
     const [history, setHistory] = useState<BankEntry[]>([])
 
     useAsyncEffect(async isMounted => {
@@ -162,7 +168,7 @@ function History({ uuid, updateError }: { uuid: Uuid, updateError: UpdateError }
         if (isMounted()) {
             if (response.status === 200) {
                 if (isBankHistoryResponse(body)) {
-                    setHistory(body.hist.map(({ balance, isoTimestamp }) => ({ balance, date: new Date(isoTimestamp) })))
+                    setHistory(body.hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) })))
                 } else {
                     updateError()
                 }
@@ -174,9 +180,18 @@ function History({ uuid, updateError }: { uuid: Uuid, updateError: UpdateError }
                 }
             }
         }
-    })
+    }, [reload])
+
+    const bankEntries = history.map(({ balance, date }, i) => (
+        <div key={i} className='bank-entry'>
+            <div className='bank-entry-balance'>{balance < 0 ? '-' : ''}${Math.abs(balance)}</div>
+            <div className='bank-entry-date'>{date.format('dddd, MMMM Do. h:mm A')} ({date.fromNow()})</div>
+        </div>
+    ))
 
     return (
-        <div className='bank-panel history'>{JSON.stringify(history)}</div>
+        <div className='bank-panel history'>
+            {bankEntries}
+        </div>
     )
 }

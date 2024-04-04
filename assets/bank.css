@@ -2,7 +2,7 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    margin: 40px;
+    margin-top: 40px;
     min-height: 600px;
 }
 
@@ -18,15 +18,17 @@
     flex-direction: column;
     flex-grow: 3;
     max-width: 400px;
-    min-width: 300px;
-    min-height: 300px;
+    min-width: 400px;
+    min-height: 550px;
 }
 
 .history {
     flex-grow: 1;
     min-width: 250px;
-    max-width: 350px;
+    max-width: 300px;
     min-height: 300px;
+    max-height: 600px;
+    overflow-y: auto;
 }
 
 .display {
@@ -57,4 +59,20 @@
     align-items: center;
     justify-content: center;
     font-weight: bold;
+}
+
+.bank-entry {
+    padding: 12px;
+    border-bottom: 2px solid var(--light-purp);
+}
+
+.bank-entry-balance {
+    font-size: 24px;
+    padding: 4px;
+}
+
+.bank-entry-date {
+    font-size: 12px;
+    color: var(--light-gray);
+    font-style: italic;
 }
