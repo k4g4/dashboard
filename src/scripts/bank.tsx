@@ -181,17 +181,30 @@ function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: Updat
             }
         }
     }, [reload])
+    console.log(history.at(0)?.balance)
+    const displayBalance = (balance: number) =>
+        `${Math.ceil(balance * 100) < 0 ? '-' : ''}$${Math.abs(balance).toFixed(2)}`
+    const displayDate = (date: Moment) =>
+        `${date.format('dddd, MMMM Do. h:mm A')} (${date.fromNow()})`
 
-    const bankEntries = history.map(({ balance, date }, i) => (
-        <div key={i} className='bank-entry'>
-            <div className='bank-entry-balance'>{balance < 0 ? '-' : ''}${Math.abs(balance)}</div>
-            <div className='bank-entry-date'>{date.format('dddd, MMMM Do. h:mm A')} ({date.fromNow()})</div>
+    const currentEntry = (
+        <div className='bank-entry bank-entry-current'>
+            <div className='bank-entry-balance'>{displayBalance(history.length ? history[0].balance : 0)}</div>
+            <div className='bank-entry-date'>{history.length && displayDate(history[0].date)}</div>
+        </div>
+    )
+
+    const olderEntries = history.slice(1).map(({ balance, date }, i) => (
+        <div key={i} className='bank-entry bank-entry-older'>
+            <div className='bank-entry-balance'>{displayBalance(balance)}</div>
+            <div className='bank-entry-date'>{displayDate(date)}</div>
         </div>
     ))
 
     return (
-        <div className='bank-panel history'>
-            {bankEntries}
+        <div className='history'>
+            <div className='bank-panel history-current'>{currentEntry}</div>
+            <div className='bank-panel history-older'>{olderEntries}</div>
         </div>
     )
 }
