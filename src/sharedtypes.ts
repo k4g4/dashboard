@@ -73,3 +73,27 @@ export function isBioBody(body: any): body is BioBody {
     return ('bio' in body && typeof body.bio === 'string'
         && 'uuid' in body && isUuid(body.uuid))
 }
+
+export const BANK_TRANSACT_ENDPOINT = 'banktransact'
+
+export type BankTransactBody = { uuid: Uuid, amount: number, adding?: boolean }
+
+export function isBankTransactBody(body: any): body is BankTransactBody {
+    return ('uuid' in body && isUuid(body.uuid)
+        && 'amount' in body && typeof body.amount === 'number'
+        && ('adding' in body ? typeof body.adding === 'boolean' : true))
+}
+
+export type BankTransactResponse = { newBalance: number }
+
+export function isBankTransactResponse(body: any): body is BankTransactResponse {
+    return 'newBalance' in body && typeof body.newBalance === 'number'
+}
+
+export const BANK_HISTORY_ENDPOINT = 'bankhist'
+
+export type BankHistoryResponse = { hist: { balance: number, isoTimestamp: string }[] }
+
+export function isBankHistoryResponse(body: any): body is BankHistoryResponse {
+    return 'hist' in body && body.hist instanceof Array
+}

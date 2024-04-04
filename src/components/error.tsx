@@ -3,7 +3,9 @@ import { createContext, useState, type PropsWithChildren } from "react"
 const UNKNOWN_ERROR = 'an unknown error has occurred'
 const FADE_OUT_TIME = 2_500
 
-export const UpdateErrorContext = createContext<((error?: string) => void)>(() => { })
+export type UpdateError = (error?: string) => void
+
+export const UpdateErrorContext = createContext<UpdateError>(() => { })
 
 export function ErrorProvider({ children }: PropsWithChildren) {
     const [error, setError] = useState('')

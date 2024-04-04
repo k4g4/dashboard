@@ -12,5 +12,9 @@
     ],
     [
         "CREATE TABLE userBio(userUuid CHARACTER(36) PRIMARY KEY, bio TEXT);"
+    ],
+    [
+        "CREATE TABLE bank(userUuid CHARACTER(36), isoTimestamp CHARACTER(24), balance REAL);",
+        "CREATE INDEX bankHistory ON bank(userUuid, isoTimestamp DESC);"
     ]
 ]

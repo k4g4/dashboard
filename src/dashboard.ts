@@ -9,7 +9,13 @@ import {
     type BioResponse,
     isLoginBody,
     isBioBody,
-    type BioBody
+    type BioBody,
+    BANK_TRANSACT_ENDPOINT,
+    isBankTransactBody,
+    type BankTransactBody,
+    type BankTransactResponse,
+    type BankHistoryResponse,
+    BANK_HISTORY_ENDPOINT
 } from './sharedtypes'
 
 const BUILD_DIR = Bun.env.BUILD_DIR ?? 'build'
@@ -125,6 +131,14 @@ export class Dashboard {
                 }
                 return await this.getBio(uuid)
             }
+
+            case BANK_HISTORY_ENDPOINT: {
+                const uuid = searchParams.get(UUID_PARAM)
+                if (!isUuid(uuid)) {
+                    return this.serve400('no uuid provided')
+                }
+                return await this.bankHistory(uuid)
+            }
         }
         return this.serve404()
     }
@@ -166,6 +180,20 @@ export class Dashboard {
                     return await this.setBio(json)
                 } else {
                     return this.serve400('invalid bio body')
+                }
+            }
+
+            case BANK_TRANSACT_ENDPOINT: {
+                let json
+                try {
+                    json = await req.json()
+                } catch {
+                    return this.serve400('invalid json body')
+                }
+                if (isBankTransactBody(json)) {
+                    return await this.bankTransact(json)
+                } else {
+                    return this.serve400('invalid bank transact body')
                 }
             }
         }
@@ -325,6 +353,28 @@ export class Dashboard {
     async setBio({ uuid, bio }: BioBody) {
         this.db.setUserBio(uuid, bio)
         return new Response()
+    }
+
+    async bankHistory(uuid: Uuid) {
+        const result = this.db.getBankHistory(uuid, 20)
+        let body: BankHistoryResponse
+        if (result) {
+            body = { hist: result }
+        } else {
+            body = { hist: [] }
+        }
+        return Response.json(body)
+    }
+
+    async bankTransact({ uuid, amount, adding }: BankTransactBody) {
+        if (adding) {
+            amount = -amount
+        }
+        const result = this.db.getBankHistory(uuid, 1)
+        const newBalance = (result && result.length > 0 ? result[0].balance : 0) - amount
+        this.db.newBalance(uuid, new Date().toISOString(), newBalance)
+        const body: BankTransactResponse = { newBalance }
+        return Response.json(body)
     }
 
     serve() {

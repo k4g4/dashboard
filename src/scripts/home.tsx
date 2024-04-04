@@ -1,10 +1,15 @@
 import ReactDOM from 'react-dom/client'
 import { Page, UuidContext } from '../components/page'
-import { useContext, useState, type ChangeEvent, type Dispatch, type FormEvent, type MouseEvent, type SetStateAction } from 'react'
+import {
+    useContext, useState, type ChangeEvent, type Dispatch,
+    type FormEvent, type MouseEvent, type SetStateAction
+} from 'react'
 import { useAsyncEffect } from 'use-async-effect'
-import { BIO_ENDPOINT, DELETE_GALLERY_ENDPOINT, IMAGE_NAME_PARAM, isApiError, isBioResponse, isListGalleryResponse, LIST_GALLERY_ENDPOINT, UPLOAD_GALLERY_ENDPOINT, UUID_PARAM, type BioBody } from '../sharedtypes'
+import {
+    BIO_ENDPOINT, DELETE_GALLERY_ENDPOINT, IMAGE_NAME_PARAM, isApiError, isBioResponse, isListGalleryResponse,
+    LIST_GALLERY_ENDPOINT, UPLOAD_GALLERY_ENDPOINT, UUID_PARAM, type BioBody
+} from '../sharedtypes'
 import { ICONS } from '../components/icons'
-import { unstable_getCurrentPriorityLevel } from '../../build/home'
 import { UpdateErrorContext } from '../components/error'
 
 ReactDOM.createRoot(document.getElementById(`root`)!).render(

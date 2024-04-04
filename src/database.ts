@@ -87,4 +87,20 @@ export class Db {
         )
         this.db.exec(query)
     }
+
+    getBankHistory(uuid: Uuid, limit: number) {
+        const query = (
+            'SELECT balance, isoTimestamp FROM bank ' +
+            `WHERE userUuid = '${uuid}' ORDER BY isoTimestamp DESC LIMIT ${limit}`
+        )
+        return this.db.query(query).all() as { balance: number, isoTimestamp: string }[] | null
+    }
+
+    newBalance(uuid: Uuid, isoTimestamp: string, balance: number) {
+        const query = (
+            'INSERT INTO bank(userUuid, isoTimestamp, balance) ' +
+            `VALUES ('${uuid}', '${isoTimestamp}', ${balance})`
+        )
+        this.db.exec(query)
+    }
 }
