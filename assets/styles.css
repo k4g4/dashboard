@@ -59,6 +59,7 @@ nav {
 }
 
 .nav-item {
+    padding-top: 10px;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -164,7 +165,7 @@ nav .logout-icon {
 }
 
 @media (max-width: 900px) {
-    .nav .nav-item {
+    .nav .nav-item:has(a:not(.selected)) {
         display: none;
     }
 

@@ -2,7 +2,7 @@ import ReactDOM from 'react-dom/client'
 import { Page, UuidContext } from '../components/page'
 import { useContext, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react'
 import {
-    BANK_HISTORY_ENDPOINT, BANK_TRANSACT_ENDPOINT,
+    BANK_HISTORY_ENDPOINT, BANK_HISTORY_LENGTH, BANK_HISTORY_PAGE_PARAM, BANK_TRANSACT_ENDPOINT,
     isApiError, isBankHistoryResponse, isBankTransactResponse, UUID_PARAM, type BankTransactBody,
     type Uuid
 } from '../sharedtypes'
@@ -161,14 +161,22 @@ type BankEntry = { balance: number, date: Moment }
 
 function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: UpdateError, reload: boolean }) {
     const [history, setHistory] = useState<BankEntry[]>([])
+    const [maybeMore, setMaybeMore] = useState(true)
+    const [page, setPage] = useState(0)
 
     useAsyncEffect(async isMounted => {
-        const response = await fetch(`/api/${BANK_HISTORY_ENDPOINT}?${UUID_PARAM}=${uuid}`)
+        const searchParams = new URLSearchParams({ [UUID_PARAM]: uuid, [BANK_HISTORY_PAGE_PARAM]: page.toString() })
+        const response = await fetch(`/api/${BANK_HISTORY_ENDPOINT}?${searchParams}`)
         const body = await response.json()
         if (isMounted()) {
             if (response.status === 200) {
                 if (isBankHistoryResponse(body)) {
                     setHistory(body.hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) })))
+                    if (body.hist.length < BANK_HISTORY_LENGTH) {
+                        setMaybeMore(false)
+                    } else {
+                        setPage(page + 1)
+                    }
                 } else {
                     updateError()
                 }
@@ -181,7 +189,7 @@ function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: Updat
             }
         }
     }, [reload])
-    console.log(history.at(0)?.balance)
+
     const displayBalance = (balance: number) =>
         `${Math.ceil(balance * 100) < 0 ? '-' : ''}$${Math.abs(balance).toFixed(2)}`
     const displayDate = (date: Moment) =>
@@ -190,7 +198,7 @@ function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: Updat
     const currentEntry = (
         <div className='bank-entry bank-entry-current'>
             <div className='bank-entry-balance'>{displayBalance(history.length ? history[0].balance : 0)}</div>
-            <div className='bank-entry-date'>{history.length && displayDate(history[0].date)}</div>
+            <div className='bank-entry-date'>{history.length ? displayDate(history[0].date) : ''}</div>
         </div>
     )
 
@@ -201,10 +209,51 @@ function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: Updat
         </div>
     ))
 
+    const showOlder: CSSProperties = {
+        visibility: history.length > 1 ? 'visible' : 'hidden'
+    }
+
+    const onLoadMore = async () => {
+        const searchParams = new URLSearchParams({ [UUID_PARAM]: uuid, [BANK_HISTORY_PAGE_PARAM]: page.toString() })
+        const response = await fetch(`/api/${BANK_HISTORY_ENDPOINT}?${searchParams}`)
+        const body = await response.json()
+        if (response.status === 200) {
+            if (isBankHistoryResponse(body)) {
+                setHistory(history => {
+                    return history.concat(body.hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) })))
+                })
+                if (body.hist.length < BANK_HISTORY_LENGTH) {
+                    setMaybeMore(false)
+                } else {
+                    setPage(page + 1)
+                }
+            } else {
+                updateError()
+            }
+        } else {
+            if (isApiError(body)) {
+                updateError(body.error)
+            } else {
+                updateError()
+            }
+        }
+    }
+
+    const loadMore = (
+        maybeMore ?
+            <div className='bank-entry load-more-entry'>
+                <button className='load-more-button' onClick={onLoadMore}>Load more...</button>
+            </div>
+            :
+            <></>
+    )
+
     return (
         <div className='history'>
+            <div className='bank-panel-label'>Current Balance</div>
             <div className='bank-panel history-current'>{currentEntry}</div>
-            <div className='bank-panel history-older'>{olderEntries}</div>
+            <div className='bank-panel-label' style={showOlder}>Prior Balances</div>
+            <div className='bank-panel history-older' style={showOlder}>{olderEntries}{loadMore}</div>
         </div>
     )
 }

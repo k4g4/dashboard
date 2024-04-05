@@ -88,10 +88,10 @@ export class Db {
         this.db.exec(query)
     }
 
-    getBankHistory(uuid: Uuid, limit: number) {
+    getBankHistory(uuid: Uuid, limit: number, offset: number) {
         const query = (
             'SELECT balance, isoTimestamp FROM bank ' +
-            `WHERE userUuid = '${uuid}' ORDER BY isoTimestamp DESC LIMIT ${limit}`
+            `WHERE userUuid = '${uuid}' ORDER BY isoTimestamp DESC LIMIT ${limit} OFFSET ${offset}`
         )
         return this.db.query(query).all() as { balance: number, isoTimestamp: string }[] | null
     }

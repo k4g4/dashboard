@@ -15,7 +15,9 @@ import {
     type BankTransactBody,
     type BankTransactResponse,
     type BankHistoryResponse,
-    BANK_HISTORY_ENDPOINT
+    BANK_HISTORY_ENDPOINT,
+    BANK_HISTORY_LENGTH,
+    BANK_HISTORY_PAGE_PARAM
 } from './sharedtypes'
 
 const BUILD_DIR = Bun.env.BUILD_DIR ?? 'build'
@@ -134,10 +136,14 @@ export class Dashboard {
 
             case BANK_HISTORY_ENDPOINT: {
                 const uuid = searchParams.get(UUID_PARAM)
+                const page = Number(searchParams.get(BANK_HISTORY_PAGE_PARAM))
                 if (!isUuid(uuid)) {
                     return this.serve400('no uuid provided')
                 }
-                return await this.bankHistory(uuid)
+                if (isNaN(page)) {
+                    return this.serve400('invalid page param')
+                }
+                return await this.bankHistory(uuid, page)
             }
         }
         return this.serve404()
@@ -355,8 +361,8 @@ export class Dashboard {
         return new Response()
     }
 
-    async bankHistory(uuid: Uuid) {
-        const result = this.db.getBankHistory(uuid, 20)
+    async bankHistory(uuid: Uuid, page: number) {
+        const result = this.db.getBankHistory(uuid, BANK_HISTORY_LENGTH, page * BANK_HISTORY_LENGTH)
         let body: BankHistoryResponse
         if (result) {
             body = { hist: result }
@@ -370,7 +376,7 @@ export class Dashboard {
         if (adding) {
             amount = -amount
         }
-        const result = this.db.getBankHistory(uuid, 1)
+        const result = this.db.getBankHistory(uuid, 1, 0)
         const newBalance = (result && result.length > 0 ? result[0].balance : 0) - amount
         this.db.newBalance(uuid, new Date().toISOString(), newBalance)
         const body: BankTransactResponse = { newBalance }

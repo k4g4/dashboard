@@ -91,6 +91,8 @@ export function isBankTransactResponse(body: any): body is BankTransactResponse 
 }
 
 export const BANK_HISTORY_ENDPOINT = 'bankhist'
+export const BANK_HISTORY_PAGE_PARAM = 'page'
+export const BANK_HISTORY_LENGTH = 30
 
 export type BankHistoryResponse = { hist: { balance: number, isoTimestamp: string }[] }
 
