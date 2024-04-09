@@ -245,7 +245,7 @@ function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: Updat
                 <button className='load-more-button' onClick={onLoadMore}>Load more...</button>
             </div>
             :
-            <></>
+            null
     )
 
     return (

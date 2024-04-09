@@ -26,6 +26,7 @@ RUN bun buildserver
 
 # copy production dependencies and source code into final image
 FROM base AS release
+RUN chown bun .
 COPY --from=prerelease /usr/src/app/dashboard .
 COPY --from=prerelease --chown=bun /usr/src/app/db db
 COPY --from=prerelease /usr/src/app/pages pages

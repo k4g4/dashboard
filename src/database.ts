@@ -2,7 +2,7 @@ import { closeSync, openSync, mkdirSync } from 'node:fs'
 import { Database } from 'bun:sqlite'
 import { isUuid, type Uuid } from './sharedtypes'
 import { v4 as generateUuid } from 'uuid'
-import migrations from '../db/migrations.json'
+import migrations from '../migrations.json'
 
 const SQLITE_PATH = Bun.env.SQLITE_PATH ?? 'db/dashboard.sqlite'
 

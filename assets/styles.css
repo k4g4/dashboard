@@ -86,7 +86,7 @@ nav {
     height: 6px;
     background-color: var(--light-purp);
     position: relative;
-    top: 6px;
+    top: 1px;
     border-bottom-left-radius: 3px;
     border-bottom-right-radius: 3px;
     visibility: hidden;
