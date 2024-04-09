@@ -39,7 +39,7 @@ function Bio() {
         const body = await response.json()
         if (isMounted()) {
             if (isBioResponse(body)) {
-                setBio(body.bio)
+                setBio(body.bio ?? undefined)
             } else if (isApiError(body)) {
                 updateError(body.error)
             } else {

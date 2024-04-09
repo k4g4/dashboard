@@ -2,6 +2,7 @@
 
 build/
 deploy.sh
+stop.sh
 dashboard
 db/*.sqlite
 data/*

@@ -70,6 +70,15 @@ export class Db {
         return uuid
     }
 
+    getUserLoggedIn(uuid: Uuid) {
+        const query = `SELECT loggedIn FROM user WHERE userUuid = '${uuid}'`
+        const result = this.db.query(query).get() as { loggedIn: boolean } | null
+        if (result) {
+            return result.loggedIn
+        }
+        return false
+    }
+
     setUserLogout(uuid: Uuid) {
         this.db.exec(`UPDATE user SET loggedIn = FALSE WHERE userUuid = '${uuid}'`)
     }

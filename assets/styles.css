@@ -196,14 +196,18 @@ nav .logout-icon {
         display: block;
     }
 
+    .page-container {
+        margin: 15px !important;
+    }
+
     .page-container.dim {
         opacity: 0.1;
     }
 }
 
 .page-container {
-    margin: 100px;
-    margin-top: calc(var(--nav-height) + 60px);
+    margin: 150px;
+    margin-top: calc(var(--nav-height) + 60px) !important;
 }
 
 .drop-shadow {

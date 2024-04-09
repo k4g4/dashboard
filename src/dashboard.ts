@@ -17,7 +17,8 @@ import {
     type BankHistoryResponse,
     BANK_HISTORY_ENDPOINT,
     BANK_HISTORY_LENGTH,
-    BANK_HISTORY_PAGE_PARAM
+    BANK_HISTORY_PAGE_PARAM,
+    LOGGED_IN_ENDPOINT
 } from './sharedtypes'
 
 const BUILD_DIR = Bun.env.BUILD_DIR ?? 'build'
@@ -94,6 +95,14 @@ export class Dashboard {
 
     async serveGetApi(endpoint: string, searchParams: URLSearchParams) {
         switch (endpoint) {
+            case LOGGED_IN_ENDPOINT: {
+                const uuid = searchParams.get(UUID_PARAM)
+                if (isUuid(uuid)) {
+                    return await this.loggedIn(uuid)
+                }
+                return this.serve400('no uuid provided')
+            }
+
             case GOOGLE_LOGIN_ENDPOINT: {
                 return await this.googleLogin(searchParams.get(GOOGLE_ID_PARAM))
             }
@@ -257,6 +266,13 @@ export class Dashboard {
         return new Response('404 - File not found', { status: 404 })
     }
 
+    async loggedIn(uuid: Uuid) {
+        if (this.db.getUserLoggedIn(uuid)) {
+            return new Response()
+        }
+        return this.serve400('not logged in')
+    }
+
     async googleLogin(googleId: string | null) {
         if (googleId) {
             let body: LoginResponse
@@ -348,12 +364,13 @@ export class Dashboard {
 
     async getBio(uuid: Uuid) {
         const result = this.db.getUserBio(uuid)
+        let body: BioResponse
         if (result) {
-            const body: BioResponse = { bio: result }
-            return Response.json(body)
+            body = { bio: result }
         } else {
-            return this.serve404()
+            body = { bio: null }
         }
+        return Response.json(body)
     }
 
     async setBio({ uuid, bio }: BioBody) {

@@ -1,9 +1,3 @@
-@media (max-width: 900px) {
-    .gallery {
-        display: none;
-    }
-}
-
 .upload-button {
     margin-right: 15px;
     margin-bottom: 10px;
@@ -126,6 +120,7 @@ input[type="file"] {
     border-radius: 15px;
     font-size: 16px;
     color: var(--egg-white);
+    padding: 20px;
 }
 
 .bio-submit-button {

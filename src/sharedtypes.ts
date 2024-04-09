@@ -20,6 +20,8 @@ export function isUuid(uuid: string | null): uuid is Uuid {
 export const GOOGLE_ID_PARAM = 'googleid'
 export const UUID_PARAM = 'uuid'
 
+export const LOGGED_IN_ENDPOINT = 'loggedin'
+
 export const GOOGLE_LOGIN_ENDPOINT = 'googlelogin'
 
 export type LoginResponse = { uuid: Uuid }
@@ -61,10 +63,10 @@ export const IMAGE_NAME_PARAM = 'name'
 
 export const BIO_ENDPOINT = 'bio'
 
-export type BioResponse = { bio: string }
+export type BioResponse = { bio: string | null }
 
 export function isBioResponse(body: any): body is BioResponse {
-    return 'bio' in body && typeof body.bio === 'string'
+    return 'bio' in body && (body.bio === null || typeof body.bio === 'string')
 }
 
 export type BioBody = { uuid: Uuid, bio: string }
