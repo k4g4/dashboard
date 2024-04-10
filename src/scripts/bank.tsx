@@ -103,7 +103,7 @@ function Input({ uuid, updateError, setReload }: InputProps) {
                     const response = await fetch(`/api/${BANK_TRANSACT_ENDPOINT}`, init)
                     const body = await response.json()
                     if (response.status === 200) {
-                        bankTransactResponseSchema.parse(body)
+                        const { newBalance } = bankTransactResponseSchema.parse(body)
                         setReload(reload => !reload)
                     } else {
                         updateError(apiErrorSchema.parse(body).error)

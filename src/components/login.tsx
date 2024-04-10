@@ -8,9 +8,8 @@ import {
 } from 'react'
 import { jwtDecode } from 'jwt-decode'
 import {
-    GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT,
-    isApiError,
-    isLoginBody, isLoginResponse, LOGIN_ENDPOINT, MAX_PASSWORD_LEN, MAX_USERNAME_LEN, MIN_LEN,
+    apiErrorSchema,
+    GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT, LOGIN_ENDPOINT, loginBodySchema, loginResponseSchema, MAX_PASSWORD_LEN, MAX_USERNAME_LEN, MIN_LEN,
     type Uuid
 } from '../api_schema'
 import { UpdateErrorContext } from './error'
@@ -59,23 +58,23 @@ export function Login({ setUuid }: LoginProps) {
             }
         }
 
-        const loginBody = { username, password, signingUp }
-        if (!isLoginBody(loginBody)) {
+        const loginBody = loginBodySchema.safeParse({ username, password, signingUp })
+        if (!loginBody.success) {
             updateError(`username and password must be at least ${MIN_LEN} characters`)
             return
         }
 
-        const init = { body: JSON.stringify(loginBody), method: 'POST' }
-        const response = await fetch(`/api/${LOGIN_ENDPOINT}`, init)
-        const body = await response.json() as unknown
-        if (response.status === 200) {
-            if (isLoginResponse(body)) {
-                setUuid(body.uuid)
+        const init = { body: JSON.stringify(loginBody.data), method: 'POST' }
+        try {
+            const response = await fetch(`/api/${LOGIN_ENDPOINT}`, init)
+            const body = await response.json()
+            if (response.status === 200) {
+                setUuid(loginResponseSchema.parse(body).uuid)
             } else {
-                updateError()
+                updateError(apiErrorSchema.parse(body).error)
             }
-        } else if (isApiError(body)) {
-            updateError(body.error)
+        } catch {
+            updateError()
         }
     }
 
@@ -115,23 +114,21 @@ function GoogleLoginButton({ setUuid }: LoginProps) {
             updateError('failed to log in with Google')
             return
         }
-
         const sub = jwtDecode(credential).sub
         if (!sub) {
             updateError()
             return
         }
-
-        const response = await fetch(`/api/${GOOGLE_LOGIN_ENDPOINT}?${GOOGLE_ID_PARAM}=${sub}`)
-        const body = await response.json() as unknown
-        if (response.status === 200) {
-            if (isLoginResponse(body)) {
-                setUuid(body.uuid)
+        try {
+            const response = await fetch(`/api/${GOOGLE_LOGIN_ENDPOINT}?${GOOGLE_ID_PARAM}=${sub}`)
+            const body = await response.json() as unknown
+            if (response.status === 200) {
+                setUuid(loginResponseSchema.parse(body).uuid)
             } else {
-                updateError()
+                updateError(apiErrorSchema.parse(body).error)
             }
-        } else if (isApiError(body)) {
-            updateError(body.error)
+        } catch {
+            updateError()
         }
     }
 
