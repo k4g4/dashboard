@@ -7,11 +7,13 @@ import {
 } from 'react'
 import { useAsyncEffect } from 'use-async-effect'
 import {
-    BIO_ENDPOINT, DELETE_GALLERY_ENDPOINT, IMAGE_NAME_PARAM, isApiError, isBioResponse, isListGalleryResponse,
-    LIST_GALLERY_ENDPOINT, UPLOAD_GALLERY_ENDPOINT, UUID_PARAM, type BioBody
-} from '../sharedtypes'
+    apiErrorSchema,
+    BIO_ENDPOINT, bioBodySchema, bioResponseSchema, DELETE_GALLERY_ENDPOINT, IMAGE_NAME_PARAM,
+    LIST_GALLERY_ENDPOINT, listGalleryResponseSchema, UPLOAD_GALLERY_ENDPOINT, UUID_PARAM,
+} from '../api_schema'
 import { ICONS } from '../components/icons'
 import { UpdateErrorContext } from '../components/error'
+import type { z } from 'zod'
 
 ReactDOM.createRoot(document.getElementById(`root`)!).render(
     <Page pageName='home'>
@@ -38,12 +40,12 @@ function Bio() {
         }
         const body = await response.json()
         if (isMounted()) {
-            if (isBioResponse(body)) {
-                setBio(body.bio ?? undefined)
-            } else if (isApiError(body)) {
-                updateError(body.error)
+            const bioResponse = bioResponseSchema.safeParse(body)
+            if (bioResponse.success) {
+                setBio(bioResponse.data.bio ?? undefined)
             } else {
-                updateError()
+                const apiError = apiErrorSchema.safeParse(body)
+                updateError(apiError.success ? apiError.data.error : undefined)
             }
         }
     }, [reload])
@@ -58,7 +60,7 @@ function Bio() {
         event.preventDefault()
 
         const sanitizedBio = newBio ? newBio.replaceAll('\'', '\'\'') : bio ?? ''
-        const body: BioBody = { uuid, bio: sanitizedBio }
+        const body: z.infer<typeof bioBodySchema> = { uuid, bio: sanitizedBio }
         const response = await fetch(`/api/${BIO_ENDPOINT}`, { method: 'POST', body: JSON.stringify(body) })
         if (response.status === 200) {
             setEditing(false)
@@ -66,12 +68,11 @@ function Bio() {
         } else {
             try {
                 const body = await response.json()
-                if (isApiError(body)) {
-                    updateError(body.error)
-                    return
-                }
-            } catch { }
-            updateError()
+                const apiError = apiErrorSchema.safeParse(body)
+                updateError(apiError.success ? apiError.data.error : undefined)
+            } catch {
+                updateError()
+            }
         }
     }
 
@@ -137,12 +138,12 @@ function Gallery() {
         const response = await fetch(`/api/${LIST_GALLERY_ENDPOINT}?${UUID_PARAM}=${uuid}`)
         const body = await response.json()
         if (isMounted()) {
-            if (isListGalleryResponse(body)) {
-                setImages(body)
-            } else if (isApiError(body)) {
-                updateError(body.error)
+            const listGalleryResponse = listGalleryResponseSchema.safeParse(body)
+            if (listGalleryResponse.success) {
+                setImages(listGalleryResponse.data)
             } else {
-                updateError()
+                const apiError = apiErrorSchema.safeParse(body)
+                updateError(apiError.success ? apiError.data.error : undefined)
             }
         }
     }, [reload])
@@ -172,12 +173,11 @@ function Gallery() {
             } else {
                 try {
                     const body = await response.json()
-                    if (isApiError(body)) {
-                        updateError(body.error)
-                        return
-                    }
-                } catch { }
-                updateError()
+                    const apiError = apiErrorSchema.safeParse(body)
+                    updateError(apiError.success ? apiError.data.error : undefined)
+                } catch {
+                    updateError()
+                }
             }
         })
 
@@ -198,12 +198,11 @@ function Gallery() {
         } else {
             try {
                 const body = await response.json()
-                if (isApiError(body)) {
-                    updateError(body.error)
-                    return
-                }
-            } catch { }
-            updateError()
+                const apiError = apiErrorSchema.safeParse(body)
+                updateError(apiError.success ? apiError.data.error : undefined)
+            } catch {
+                updateError()
+            }
         }
     }
 

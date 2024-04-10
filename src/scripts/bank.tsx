@@ -2,13 +2,18 @@ import ReactDOM from 'react-dom/client'
 import { Page, UuidContext } from '../components/page'
 import { useContext, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react'
 import {
+    apiErrorSchema,
     BANK_HISTORY_ENDPOINT, BANK_HISTORY_LENGTH, BANK_HISTORY_PAGE_PARAM, BANK_TRANSACT_ENDPOINT,
-    isApiError, isBankHistoryResponse, isBankTransactResponse, UUID_PARAM, type BankTransactBody,
+    bankHistoryResponseSchema,
+    bankTransactBodySchema,
+    bankTransactResponseSchema,
+    UUID_PARAM,
     type Uuid
-} from '../sharedtypes'
+} from '../api_schema'
 import { UpdateErrorContext, type UpdateError } from '../components/error'
 import useAsyncEffect from 'use-async-effect'
 import moment, { type Moment } from 'moment'
+import type { z } from 'zod'
 
 ReactDOM.createRoot(document.getElementById(`root`)!).render(
     <Page pageName='bank'>
@@ -86,29 +91,22 @@ function Input({ uuid, updateError, setReload }: InputProps) {
                 setInputType('unit')
                 setAdding(false)
 
-                const body: BankTransactBody = { uuid, amount }
+                const body: z.infer<typeof bankTransactBodySchema> = { uuid, amount }
                 if (adding) {
                     body.adding = true
                 }
                 const init = {
                     method: 'POST',
-                    body: JSON.stringify(body)
+                    body: JSON.stringify(body),
                 }
-                const response = await fetch(`/api/${BANK_TRANSACT_ENDPOINT}`, init)
                 try {
+                    const response = await fetch(`/api/${BANK_TRANSACT_ENDPOINT}`, init)
                     const body = await response.json()
                     if (response.status === 200) {
-                        if (isBankTransactResponse(body)) {
-                            setReload(reload => !reload)
-                        } else {
-                            updateError()
-                        }
+                        bankTransactResponseSchema.parse(body)
+                        setReload(reload => !reload)
                     } else {
-                        if (isApiError(body)) {
-                            updateError(body.error)
-                        } else {
-                            updateError()
-                        }
+                        updateError(apiErrorSchema.parse(body).error)
                     }
                 } catch {
                     updateError()
@@ -166,27 +164,24 @@ function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: Updat
 
     useAsyncEffect(async isMounted => {
         const searchParams = new URLSearchParams({ [UUID_PARAM]: uuid, [BANK_HISTORY_PAGE_PARAM]: page.toString() })
-        const response = await fetch(`/api/${BANK_HISTORY_ENDPOINT}?${searchParams}`)
-        const body = await response.json()
-        if (isMounted()) {
-            if (response.status === 200) {
-                if (isBankHistoryResponse(body)) {
-                    setHistory(body.hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) })))
-                    if (body.hist.length < BANK_HISTORY_LENGTH) {
+        try {
+            const response = await fetch(`/api/${BANK_HISTORY_ENDPOINT}?${searchParams}`)
+            const body = await response.json()
+            if (isMounted()) {
+                if (response.status === 200) {
+                    const { hist } = bankHistoryResponseSchema.parse(body)
+                    setHistory(hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) })))
+                    if (hist.length < BANK_HISTORY_LENGTH) {
                         setMaybeMore(false)
                     } else {
                         setPage(page + 1)
                     }
                 } else {
-                    updateError()
-                }
-            } else {
-                if (isApiError(body)) {
-                    updateError(body.error)
-                } else {
-                    updateError()
+                    updateError(apiErrorSchema.parse(body).error)
                 }
             }
+        } catch {
+            updateError()
         }
     }, [reload])
 
@@ -215,27 +210,24 @@ function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: Updat
 
     const onLoadMore = async () => {
         const searchParams = new URLSearchParams({ [UUID_PARAM]: uuid, [BANK_HISTORY_PAGE_PARAM]: page.toString() })
-        const response = await fetch(`/api/${BANK_HISTORY_ENDPOINT}?${searchParams}`)
-        const body = await response.json()
-        if (response.status === 200) {
-            if (isBankHistoryResponse(body)) {
-                setHistory(history => {
-                    return history.concat(body.hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) })))
-                })
-                if (body.hist.length < BANK_HISTORY_LENGTH) {
+        try {
+            const response = await fetch(`/api/${BANK_HISTORY_ENDPOINT}?${searchParams}`)
+            const body = await response.json()
+            if (response.status === 200) {
+                const { hist } = bankHistoryResponseSchema.parse(body)
+                setHistory(history =>
+                    history.concat(hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) })))
+                )
+                if (hist.length < BANK_HISTORY_LENGTH) {
                     setMaybeMore(false)
                 } else {
                     setPage(page + 1)
                 }
             } else {
-                updateError()
+                updateError(apiErrorSchema.parse(body).error)
             }
-        } else {
-            if (isApiError(body)) {
-                updateError(body.error)
-            } else {
-                updateError()
-            }
+        } catch {
+            updateError()
         }
     }
 

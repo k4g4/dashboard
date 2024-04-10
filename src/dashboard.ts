@@ -3,33 +3,32 @@ import { opendir, mkdir, stat, unlink } from 'node:fs/promises'
 import { Db } from './database'
 import {
     DELETE_GALLERY_ENDPOINT, LOGIN_ENDPOINT, LOGOUT_ENDPOINT, UPLOAD_GALLERY_ENDPOINT,
-    GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT, IMAGE_NAME_PARAM, isUuid, LIST_GALLERY_ENDPOINT,
-    UUID_PARAM, type ApiError, type LoginBody, type LoginResponse, type Uuid,
-    BIO_ENDPOINT,
-    type BioResponse,
-    isLoginBody,
-    isBioBody,
-    type BioBody,
-    BANK_TRANSACT_ENDPOINT,
-    isBankTransactBody,
-    type BankTransactBody,
-    type BankTransactResponse,
-    type BankHistoryResponse,
-    BANK_HISTORY_ENDPOINT,
-    BANK_HISTORY_LENGTH,
-    BANK_HISTORY_PAGE_PARAM,
-    LOGGED_IN_ENDPOINT
-} from './sharedtypes'
+    GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT, IMAGE_NAME_PARAM, LIST_GALLERY_ENDPOINT,
+    UUID_PARAM, BIO_ENDPOINT, BANK_TRANSACT_ENDPOINT, BANK_HISTORY_ENDPOINT,
+    BANK_HISTORY_LENGTH, BANK_HISTORY_PAGE_PARAM, LOGGED_IN_ENDPOINT,
+    uuidSchema,
+    type Uuid,
+    loginBodySchema,
+    bioBodySchema,
+    bankTransactBodySchema,
+    apiErrorSchema,
+    loginResponseSchema,
+    listGalleryResponseSchema,
+    bioResponseSchema,
+    bankHistoryResponseSchema,
+    bankTransactResponseSchema
+} from './api_schema'
+import { z } from 'zod'
 
 const BUILD_DIR = Bun.env.BUILD_DIR ?? 'build'
 const PORT = Bun.env.PORT ?? '3000'
 const DEVELOPMENT = Bun.env.DEVELOPMENT === 'true'
 
-const SRC = 'src'
-const PAGE_SCRIPTS = `${SRC}/scripts`
-const PAGES = 'pages'
-const ASSETS = 'assets'
-const DATA = 'data'
+const SRC_DIR = 'src'
+const PAGE_SCRIPTS = `${SRC_DIR}/scripts`
+const PAGES_DIR = 'pages'
+const ASSETS_DIR = 'assets'
+const DATA_DIR = 'data'
 
 export class Dashboard {
     scripts: Map<string, number>
@@ -59,10 +58,25 @@ export class Dashboard {
         if (pathname.startsWith('/api')) {
             // trim off /api/
             const endpoint = pathname.slice(5)
-            if (method === 'GET') {
-                return await this.serveGetApi(endpoint, searchParams)
-            } else {
-                return await this.servePostApi(endpoint, req)
+            try {
+                if (method === 'GET') {
+                    return await this.serveGetApi(endpoint, searchParams)
+                } else {
+                    return await this.servePostApi(endpoint, req)
+                }
+            } catch (error) {
+                if (error instanceof z.ZodError) {
+                    if (error.issues.length == 1) {
+                        return this.serve400(`Parsing error: ${error.issues[0].message}`)
+                    } else {
+                        const messages = 'Parsing errors:\n' + error.issues.map(issue => `${issue.message}\n`)
+                        return this.serve400(messages)
+                    }
+                } else if (error instanceof SyntaxError) { // this occurs if no JSON body was found when one was expected
+                    return this.serve400('no JSON provided')
+                } else {
+                    throw error
+                }
             }
         }
 
@@ -71,7 +85,7 @@ export class Dashboard {
                 return await this.fetchScript(pathname)
             }
 
-            if (pathname.startsWith(`/${DATA}`)) {
+            if (pathname.startsWith(`/${DATA_DIR}`)) {
                 return await this.fetchData(pathname)
             }
 
@@ -96,63 +110,33 @@ export class Dashboard {
     async serveGetApi(endpoint: string, searchParams: URLSearchParams) {
         switch (endpoint) {
             case LOGGED_IN_ENDPOINT: {
-                const uuid = searchParams.get(UUID_PARAM)
-                if (isUuid(uuid)) {
-                    return await this.loggedIn(uuid)
-                }
-                return this.serve400('no uuid provided')
+                const uuid = uuidSchema.parse(searchParams.get(UUID_PARAM))
+                return await this.loggedIn(uuid)
             }
-
             case GOOGLE_LOGIN_ENDPOINT: {
                 return await this.googleLogin(searchParams.get(GOOGLE_ID_PARAM))
             }
-
             case LOGOUT_ENDPOINT: {
-                const uuid = searchParams.get(UUID_PARAM)
-                if (isUuid(uuid)) {
-                    return await this.logout(uuid)
-                }
-                return this.serve400('no uuid provided')
+                const uuid = uuidSchema.parse(searchParams.get(UUID_PARAM))
+                return await this.logout(uuid)
             }
-
             case LIST_GALLERY_ENDPOINT: {
-                const uuid = searchParams.get(UUID_PARAM)
-                if (isUuid(uuid)) {
-                    return await this.listGallery(uuid)
-                }
-                return this.serve400('no uuid provided')
+                const uuid = uuidSchema.parse(searchParams.get(UUID_PARAM))
+                return await this.listGallery(uuid)
             }
-
             case DELETE_GALLERY_ENDPOINT: {
-                const uuid = searchParams.get(UUID_PARAM)
-                if (!isUuid(uuid)) {
-                    return this.serve400('no uuid provided')
-                }
-                const name = searchParams.get(IMAGE_NAME_PARAM)
-                if (!name) {
-                    return this.serve400('no image name provided')
-                }
+                const uuid = uuidSchema.parse(searchParams.get(UUID_PARAM))
+                const name = z.string().parse(searchParams.get(IMAGE_NAME_PARAM))
                 return await this.deleteGallery(uuid, name)
             }
-
             case BIO_ENDPOINT: {
-                const uuid = searchParams.get(UUID_PARAM)
-                if (!isUuid(uuid)) {
-                    return this.serve400('no uuid provided')
-                }
+                const uuid = uuidSchema.parse(searchParams.get(UUID_PARAM))
                 return await this.getBio(uuid)
             }
-
             case BANK_HISTORY_ENDPOINT: {
-                const uuid = searchParams.get(UUID_PARAM)
-                const page = Number(searchParams.get(BANK_HISTORY_PAGE_PARAM))
-                if (!isUuid(uuid)) {
-                    return this.serve400('no uuid provided')
-                }
-                if (isNaN(page)) {
-                    return this.serve400('invalid page param')
-                }
-                return await this.bankHistory(uuid, page)
+                const uuid = uuidSchema.parse(searchParams.get(UUID_PARAM))
+                const page = z.string().regex(/[0-9]+/).parse(searchParams.get(BANK_HISTORY_PAGE_PARAM))
+                return await this.bankHistory(uuid, Number(page))
             }
         }
         return this.serve404()
@@ -161,19 +145,9 @@ export class Dashboard {
     async servePostApi(endpoint: string, req: Request) {
         switch (endpoint) {
             case LOGIN_ENDPOINT: {
-                let json
-                try {
-                    json = await req.json()
-                } catch {
-                    return this.serve400('invalid json body')
-                }
-                if (isLoginBody(json)) {
-                    return await this.login(json)
-                } else {
-                    return this.serve400('invalid login body')
-                }
+                const loginBody = loginBodySchema.parse(await req.json())
+                return await this.login(loginBody)
             }
-
             case UPLOAD_GALLERY_ENDPOINT: {
                 let formData
                 try {
@@ -183,33 +157,13 @@ export class Dashboard {
                 }
                 return await this.uploadGallery(formData)
             }
-
             case BIO_ENDPOINT: {
-                let json
-                try {
-                    json = await req.json()
-                } catch {
-                    return this.serve400('invalid json body')
-                }
-                if (isBioBody(json)) {
-                    return await this.setBio(json)
-                } else {
-                    return this.serve400('invalid bio body')
-                }
+                const bioBody = bioBodySchema.parse(await req.json())
+                return await this.setBio(bioBody)
             }
-
             case BANK_TRANSACT_ENDPOINT: {
-                let json
-                try {
-                    json = await req.json()
-                } catch {
-                    return this.serve400('invalid json body')
-                }
-                if (isBankTransactBody(json)) {
-                    return await this.bankTransact(json)
-                } else {
-                    return this.serve400('invalid bank transact body')
-                }
+                const bankTransactBody = bankTransactBodySchema.parse(await req.json())
+                return await this.bankTransact(bankTransactBody)
             }
         }
         return this.serve404()
@@ -245,11 +199,11 @@ export class Dashboard {
     }
 
     async fetchAsset(asset: string) {
-        return new Response(Bun.file(`${ASSETS}${asset}`))
+        return new Response(Bun.file(`${ASSETS_DIR}${asset}`))
     }
 
     async fetchPage(pathname: string) {
-        const page = Bun.file(`${PAGES}${pathname}`)
+        const page = Bun.file(`${PAGES_DIR}${pathname}`)
         if (await page.exists()) {
             return new Response(page)
         } else {
@@ -258,7 +212,7 @@ export class Dashboard {
     }
 
     serve400(error: string) {
-        const body: ApiError = { error }
+        const body: z.infer<typeof apiErrorSchema> = { error }
         return Response.json(body, { status: 400 })
     }
 
@@ -275,7 +229,7 @@ export class Dashboard {
 
     async googleLogin(googleId: string | null) {
         if (googleId) {
-            let body: LoginResponse
+            let body: z.infer<typeof loginResponseSchema>
             const uuid = this.db.getGoogleAccount(googleId)
             if (uuid) {
                 body = { uuid }
@@ -289,8 +243,8 @@ export class Dashboard {
         }
     }
 
-    async login({ username, password, signingUp }: LoginBody) {
-        let body: LoginResponse
+    async login({ username, password, signingUp }: z.infer<typeof loginBodySchema>) {
+        let body: z.infer<typeof loginResponseSchema>
         const result = this.db.getAccount(username)
         if (result) {
             if (signingUp) {
@@ -317,10 +271,10 @@ export class Dashboard {
     }
 
     async listGallery(uuid: Uuid) {
-        const dir = `${DATA}/${uuid}`
+        const dir = `${DATA_DIR}/${uuid}`
         await mkdir(dir, { recursive: true })
 
-        let files: { mtimeMs: number, path: string }[] = []
+        const files: { mtimeMs: number, path: string }[] = []
         for await (const { name } of await opendir(dir)) {
             const path = `${dir}/${name}`
             const { mtimeMs } = await stat(path)
@@ -328,15 +282,13 @@ export class Dashboard {
         }
         files.sort((left, right) => right.mtimeMs - left.mtimeMs)
 
-        return Response.json(files.map(({ path }) => path))
+        const listGalleryResponse: z.infer<typeof listGalleryResponseSchema> = files.map(({ path }) => path)
+        return Response.json(listGalleryResponse)
     }
 
     async uploadGallery(formData: FormData) {
-        const uuid = formData.get('uuid')
-        if (typeof uuid !== 'string' || !isUuid(uuid)) {
-            return this.serve400('invalid uuid')
-        }
-        const dir = `${DATA}/${uuid}`
+        const uuid = uuidSchema.parse(formData.get('uuid'))
+        const dir = `${DATA_DIR}/${uuid}`
 
         let files: File[] = []
         formData.forEach(file => {
@@ -354,7 +306,7 @@ export class Dashboard {
 
     async deleteGallery(uuid: Uuid, name: string) {
         try {
-            await unlink(`${DATA}/${uuid}/${name}`)
+            await unlink(`${DATA_DIR}/${uuid}/${name}`)
         } catch {
             return this.serve400('unknown file')
         }
@@ -364,39 +316,29 @@ export class Dashboard {
 
     async getBio(uuid: Uuid) {
         const result = this.db.getUserBio(uuid)
-        let body: BioResponse
-        if (result) {
-            body = { bio: result }
-        } else {
-            body = { bio: null }
-        }
+        const body: z.infer<typeof bioResponseSchema> = { bio: result || null }
         return Response.json(body)
     }
 
-    async setBio({ uuid, bio }: BioBody) {
+    async setBio({ uuid, bio }: z.infer<typeof bioBodySchema>) {
         this.db.setUserBio(uuid, bio)
         return new Response()
     }
 
     async bankHistory(uuid: Uuid, page: number) {
         const result = this.db.getBankHistory(uuid, BANK_HISTORY_LENGTH, page * BANK_HISTORY_LENGTH)
-        let body: BankHistoryResponse
-        if (result) {
-            body = { hist: result }
-        } else {
-            body = { hist: [] }
-        }
+        const body: z.infer<typeof bankHistoryResponseSchema> = { hist: result || [] }
         return Response.json(body)
     }
 
-    async bankTransact({ uuid, amount, adding }: BankTransactBody) {
+    async bankTransact({ uuid, amount, adding }: z.infer<typeof bankTransactBodySchema>) {
         if (adding) {
             amount = -amount
         }
         const result = this.db.getBankHistory(uuid, 1, 0)
-        const newBalance = (result && result.length > 0 ? result[0].balance : 0) - amount
+        const newBalance = ((result && result.length > 0) ? result[0].balance : 0) - amount
         this.db.newBalance(uuid, new Date().toISOString(), newBalance)
-        const body: BankTransactResponse = { newBalance }
+        const body: z.infer<typeof bankTransactResponseSchema> = { newBalance }
         return Response.json(body)
     }
 

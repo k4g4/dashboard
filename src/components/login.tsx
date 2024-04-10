@@ -12,7 +12,7 @@ import {
     isApiError,
     isLoginBody, isLoginResponse, LOGIN_ENDPOINT, MAX_PASSWORD_LEN, MAX_USERNAME_LEN, MIN_LEN,
     type Uuid
-} from '../sharedtypes'
+} from '../api_schema'
 import { UpdateErrorContext } from './error'
 
 type LoginProps = { setUuid: Dispatch<SetStateAction<Uuid | null>> }

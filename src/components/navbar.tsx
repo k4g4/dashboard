@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState, type Dispatch, type PropsWithChildren, type SetStateAction } from 'react'
 import { STORAGE_UUID_KEY, UuidContext, type PageName } from './page'
-import { LOGOUT_ENDPOINT, UUID_PARAM } from '../sharedtypes'
+import { LOGOUT_ENDPOINT, UUID_PARAM } from '../api_schema'
 import { ICONS } from './icons'
 
 type MenuState = 'show' | 'hide' | 'init'

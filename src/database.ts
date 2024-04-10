@@ -1,15 +1,18 @@
 import { closeSync, openSync, mkdirSync } from 'node:fs'
 import { Database } from 'bun:sqlite'
-import { isUuid, type Uuid } from './sharedtypes'
+import { uuidSchema, type Uuid } from './api_schema'
 import { v4 as generateUuid } from 'uuid'
 import migrations from '../migrations.json'
 
-const SQLITE_PATH = Bun.env.SQLITE_PATH ?? 'db/dashboard.sqlite'
+const DB_DIR = 'db'
+const SQLITE_PATH = `${DB_DIR}/dashboard.sqlite`
 
 export class Db {
     db: Database
 
     constructor() {
+        try { mkdirSync(DB_DIR) }
+        catch { }
         closeSync(openSync(SQLITE_PATH, 'a'))
         this.db = new Database(SQLITE_PATH)
 
@@ -28,11 +31,11 @@ export class Db {
         const query = `SELECT userUuid FROM googleAccount WHERE googleId = '${googleId}'`
         const result = this.db.query(query).get() as { userUuid: string } | null
         if (result) {
-            if (isUuid(result.userUuid)) {
-                this.db.exec(`UPDATE user SET loggedIn = TRUE WHERE userUuid = '${result.userUuid}'`)
-                return result.userUuid
+            const parsed = uuidSchema.safeParse(result.userUuid)
+            if (parsed.success) {
+                this.db.exec(`UPDATE user SET loggedIn = TRUE WHERE userUuid = '${parsed.data}'`)
+                return parsed.data
             }
-            throw `found invalid uuid (${result.userUuid}) for google id (${googleId})`
         }
         return null
     }
@@ -50,11 +53,11 @@ export class Db {
         const query = `SELECT passwordHash, userUuid FROM account WHERE username = '${username}'`
         const result = this.db.query(query).get() as { passwordHash: string, userUuid: string } | null
         if (result) {
-            if (isUuid(result.userUuid)) {
+            const parsed = uuidSchema.safeParse(result.userUuid)
+            if (parsed.success) {
                 this.db.exec(`UPDATE user SET loggedIn = TRUE WHERE userUuid = '${result.userUuid}'`)
-                return { passwordHash: result.passwordHash, uuid: result.userUuid }
+                return { passwordHash: result.passwordHash, uuid: parsed.data }
             }
-            throw `found invalid uuid (${result.userUuid}) for user (${username})`
         }
         return null
     }
