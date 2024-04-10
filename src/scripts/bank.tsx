@@ -86,7 +86,7 @@ function Input({ uuid, updateError, setReload }: InputProps) {
                 setAdding(true)
             } else if (label === '-') {
                 setAdding(false)
-            } else if (label === '↲') {
+            } else if (label === '↲' && amount !== 0) {
                 setAmount(0)
                 setInputType('unit')
                 setAdding(false)
@@ -163,7 +163,8 @@ function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: Updat
     const [page, setPage] = useState(0)
 
     useAsyncEffect(async isMounted => {
-        const searchParams = new URLSearchParams({ [UUID_PARAM]: uuid, [BANK_HISTORY_PAGE_PARAM]: page.toString() })
+        setPage(0)
+        const searchParams = new URLSearchParams({ [UUID_PARAM]: uuid, [BANK_HISTORY_PAGE_PARAM]: '0' })
         try {
             const response = await fetch(`/api/${BANK_HISTORY_ENDPOINT}?${searchParams}`)
             const body = await response.json()
@@ -171,11 +172,7 @@ function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: Updat
                 if (response.status === 200) {
                     const { hist } = bankHistoryResponseSchema.parse(body)
                     setHistory(hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) })))
-                    if (hist.length < BANK_HISTORY_LENGTH) {
-                        setMaybeMore(false)
-                    } else {
-                        setPage(page + 1)
-                    }
+                    setMaybeMore(hist.length === BANK_HISTORY_LENGTH)
                 } else {
                     updateError(apiErrorSchema.parse(body).error)
                 }

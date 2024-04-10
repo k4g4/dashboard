@@ -8,9 +8,8 @@ import {
 } from 'react'
 import { jwtDecode } from 'jwt-decode'
 import {
-    apiErrorSchema,
-    GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT, LOGIN_ENDPOINT, loginBodySchema, loginResponseSchema, MAX_PASSWORD_LEN, MAX_USERNAME_LEN, MIN_LEN,
-    type Uuid
+    apiErrorSchema, GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT, LOGIN_ENDPOINT, loginBodySchema,
+    loginResponseSchema, MAX_PASSWORD_LEN, MAX_USERNAME_LEN, MIN_LEN, type Uuid
 } from '../api_schema'
 import { UpdateErrorContext } from './error'
 
