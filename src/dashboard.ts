@@ -21,8 +21,10 @@ import {
     setAllowanceBodySchema
 } from './api_schema'
 import { z } from 'zod'
+import moment, { type Moment } from 'moment'
 
 const BUILD_DIR = Bun.env.BUILD_DIR ?? 'build'
+const PERSIST_DIR = Bun.env.PERSIST_DIR ?? 'persist'
 const PORT = Bun.env.PORT ?? '3000'
 const DEVELOPMENT = Bun.env.DEVELOPMENT === 'true'
 
@@ -30,7 +32,7 @@ const SRC_DIR = 'src'
 const PAGE_SCRIPTS = `${SRC_DIR}/scripts`
 const PAGES_DIR = 'pages'
 const ASSETS_DIR = 'assets'
-const DATA_DIR = 'data'
+const DATA_DIR = `${PERSIST_DIR}/data`
 
 export class Dashboard {
     scripts: Map<string, number>
@@ -331,12 +333,22 @@ export class Dashboard {
         return new Response()
     }
 
+    calcNewBalance(balance: number, prevDate: Moment, allowance: number) {
+        const days = moment().startOf('day').diff(prevDate.startOf('day'), 'days')
+        return balance + (days * allowance)
+    }
+
     async bankAccount(uuid: Uuid, page: number) {
         const allowance = this.db.getBankAllowance(uuid)
         if (allowance === undefined) {
             return this.serve400('user not found')
         }
-        const balance = this.db.getBankBalance(uuid) || 0
+        const result = this.db.getBankBalance(uuid)
+        const balance = this.calcNewBalance(
+            result ? result.balance : 0,
+            moment(result?.isoTimestamp),
+            allowance,
+        )
         const hist = this.db.getBankHistory(uuid, BANK_HISTORY_LENGTH, page * BANK_HISTORY_LENGTH) || []
         const body: z.infer<typeof bankAccountResponseSchema> = { balance, allowance, hist }
         return Response.json(body)
@@ -346,8 +358,17 @@ export class Dashboard {
         if (adding) {
             amount = -amount
         }
-        const result = this.db.getBankHistory(uuid, 1, 0)
-        const newBalance = ((result && result.length > 0) ? result[0].balance : 0) - amount
+        const allowance = this.db.getBankAllowance(uuid)
+        if (allowance === undefined) {
+            return this.serve400('user not found')
+        }
+        const result = this.db.getBankBalance(uuid)
+        const balance = this.calcNewBalance(
+            result ? result.balance : 0,
+            moment(result?.isoTimestamp),
+            allowance,
+        )
+        const newBalance = balance - amount
         this.db.newBalance(uuid, new Date().toISOString(), newBalance)
         const body: z.infer<typeof bankTransactResponseSchema> = { newBalance }
         return Response.json(body)

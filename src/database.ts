@@ -4,7 +4,8 @@ import { uuidSchema, type Uuid } from './api_schema'
 import { v4 as generateUuid } from 'uuid'
 import migrations from '../migrations.json'
 
-const DB_DIR = 'db'
+const PERSIST_DIR = Bun.env.PERSIST_DIR ?? 'persist'
+const DB_DIR = `${PERSIST_DIR}/db`
 const SQLITE_PATH = `${DB_DIR}/dashboard.sqlite`
 
 export class Db {
@@ -109,9 +110,8 @@ export class Db {
     }
 
     getBankBalance(uuid: Uuid) {
-        const query = `SELECT balance FROM bank WHERE userUuid = '${uuid}' ORDER BY isoTimestamp DESC`
-        const result = this.db.query(query).get() as { balance: number } | null
-        return result?.balance
+        const query = `SELECT balance, isoTimestamp FROM bank WHERE userUuid = '${uuid}' ORDER BY isoTimestamp DESC`
+        return this.db.query(query).get() as { balance: number, isoTimestamp: string } | null
     }
 
     newBalance(uuid: Uuid, isoTimestamp: string, balance: number) {

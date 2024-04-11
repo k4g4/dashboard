@@ -219,8 +219,8 @@ function Input({ uuid, updateError, runReload, setShowSettings }: InputProps) {
     )
 
     const keys = []
-    keys.push(newKey('$', { gridColumn: '1 / 2' }))
-    keys.push(newKey('←', { gridColumn: '2 / 5' }))
+    keys.push(newKey('$', { gridColumn: '1 / 3' }))
+    keys.push(newKey('←', { gridColumn: '3 / 5' }))
     for (let i = 1; i < 10; i++) {
         keys.push(newKey(i, {
             gridRow: 4 - Math.floor((i - 1) / 3),

@@ -6,3 +6,4 @@ Dockerfile
 README.md
 .vscode
 .env
+persist

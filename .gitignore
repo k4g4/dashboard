@@ -1,11 +1,10 @@
 ### MY IGNORES ###
 
 build/
+persist/
+dashboard
 deploy.sh
 stop.sh
-dashboard
-db/*.sqlite
-data/*
 
 ### BUN IGNORES ###
 
