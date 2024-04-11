@@ -108,6 +108,11 @@ export class Db {
         return this.db.query(query).all() as { balance: number, isoTimestamp: string }[] | null
     }
 
+    getBankBalance(uuid: Uuid) {
+        const query = `SELECT balance FROM bank WHERE userUuid = '${uuid}' ORDER BY isoTimestamp DESC`
+        return this.db.query(query).get() as { balance: number } | null
+    }
+
     newBalance(uuid: Uuid, isoTimestamp: string, balance: number) {
         const query = (
             'INSERT INTO bank(userUuid, isoTimestamp, balance) ' +

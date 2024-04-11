@@ -326,8 +326,12 @@ export class Dashboard {
     }
 
     async bankHistory(uuid: Uuid, page: number) {
-        const result = this.db.getBankHistory(uuid, BANK_HISTORY_LENGTH, page * BANK_HISTORY_LENGTH)
-        const body: z.infer<typeof bankHistoryResponseSchema> = { hist: result || [] }
+        const histResult = this.db.getBankHistory(uuid, BANK_HISTORY_LENGTH, page * BANK_HISTORY_LENGTH)
+        const balanceResult = this.db.getBankBalance(uuid)
+        const body: z.infer<typeof bankHistoryResponseSchema> = {
+            balance: balanceResult?.balance || 0,
+            hist: histResult || [],
+        }
         return Response.json(body)
     }
 

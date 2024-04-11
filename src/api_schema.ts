@@ -70,6 +70,7 @@ export const BANK_HISTORY_PAGE_PARAM = 'page'
 export const BANK_HISTORY_LENGTH = 30
 
 export const bankHistoryResponseSchema = z.object({
+    balance: z.number().finite(),
     hist: z.array(z.object({
         balance: z.number(),
         isoTimestamp: z.string().datetime(),

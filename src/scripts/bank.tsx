@@ -1,6 +1,9 @@
 import ReactDOM from 'react-dom/client'
 import { Page, UuidContext } from '../components/page'
-import { useContext, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react'
+import {
+    useContext, useState, type ChangeEvent, type CSSProperties, type Dispatch,
+    type MouseEvent, type SetStateAction
+} from 'react'
 import {
     apiErrorSchema,
     BANK_HISTORY_ENDPOINT, BANK_HISTORY_LENGTH, BANK_HISTORY_PAGE_PARAM, BANK_TRANSACT_ENDPOINT,
@@ -26,19 +29,42 @@ function Bank() {
     const updateError = useContext(UpdateErrorContext)
 
     const [reload, setReload] = useState(false)
+    const [showSettings, setShowSettings] = useState(false)
 
     return (
         <div className='bank'>
-            <Input uuid={uuid} updateError={updateError} setReload={setReload} />
-            <History uuid={uuid} updateError={updateError} reload={reload} />
-        </div >
+            {
+                showSettings &&
+                <Settings
+                    uuid={uuid}
+                    updateError={updateError}
+                    setShowSettings={setShowSettings}
+                />
+            }
+            <Input
+                uuid={uuid}
+                updateError={updateError}
+                setReload={setReload}
+                setShowSettings={setShowSettings}
+            />
+            <History
+                uuid={uuid}
+                updateError={updateError}
+                reload={reload}
+            />
+        </div>
     )
 }
 
 type InputType = 'unit' | 'tenth' | 'hundredth' | 'disabled'
 
-type InputProps = { uuid: Uuid, updateError: UpdateError, setReload: Dispatch<SetStateAction<boolean>> }
-function Input({ uuid, updateError, setReload }: InputProps) {
+type InputProps = {
+    uuid: Uuid,
+    updateError: UpdateError,
+    setReload: Dispatch<SetStateAction<boolean>>,
+    setShowSettings: Dispatch<SetStateAction<boolean>>,
+}
+function Input({ uuid, updateError, setReload, setShowSettings }: InputProps) {
     const [amount, setAmount] = useState(0)
     const [inputType, setInputType] = useState<InputType>('unit')
     const [adding, setAdding] = useState(false);
@@ -86,6 +112,8 @@ function Input({ uuid, updateError, setReload }: InputProps) {
                 setAdding(true)
             } else if (label === '-') {
                 setAdding(false)
+            } else if (label === '$') {
+                setShowSettings(true)
             } else if (label === '↲' && amount !== 0) {
                 setAmount(0)
                 setInputType('unit')
@@ -122,8 +150,8 @@ function Input({ uuid, updateError, setReload }: InputProps) {
     )
 
     const keys = []
-    keys.push(newKey('', { gridColumn: '1 / 3' }))
-    keys.push(newKey('←', { gridColumn: '3 / 5' }))
+    keys.push(newKey('$', { gridColumn: '1 / 2' }))
+    keys.push(newKey('←', { gridColumn: '2 / 5' }))
     for (let i = 1; i < 10; i++) {
         keys.push(newKey(i, {
             gridRow: 4 - Math.floor((i - 1) / 3),
@@ -158,6 +186,7 @@ function Input({ uuid, updateError, setReload }: InputProps) {
 type BankEntry = { balance: number, date: Moment }
 
 function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: UpdateError, reload: boolean }) {
+    const [current, setCurrent] = useState(0)
     const [history, setHistory] = useState<BankEntry[]>([])
     const [maybeMore, setMaybeMore] = useState(true)
     const [page, setPage] = useState(0)
@@ -170,7 +199,8 @@ function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: Updat
             const body = await response.json()
             if (isMounted()) {
                 if (response.status === 200) {
-                    const { hist } = bankHistoryResponseSchema.parse(body)
+                    const { balance, hist } = bankHistoryResponseSchema.parse(body)
+                    setCurrent(balance)
                     setHistory(hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) })))
                     setMaybeMore(hist.length === BANK_HISTORY_LENGTH)
                 } else {
@@ -189,12 +219,11 @@ function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: Updat
 
     const currentEntry = (
         <div className='bank-entry bank-entry-current'>
-            <div className='bank-entry-balance'>{displayBalance(history.length ? history[0].balance : 0)}</div>
-            <div className='bank-entry-date'>{history.length ? displayDate(history[0].date) : ''}</div>
+            <div className='bank-entry-balance'>{displayBalance(current)}</div>
         </div>
     )
 
-    const olderEntries = history.slice(1).map(({ balance, date }, i) => (
+    const olderEntries = history.map(({ balance, date }, i) => (
         <div key={i} className='bank-entry bank-entry-older'>
             <div className='bank-entry-balance'>{displayBalance(balance)}</div>
             <div className='bank-entry-date'>{displayDate(date)}</div>
@@ -243,6 +272,49 @@ function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: Updat
             <div className='bank-panel history-current'>{currentEntry}</div>
             <div className='bank-panel-label' style={showOlder}>Prior Balances</div>
             <div className='bank-panel history-older' style={showOlder}>{olderEntries}{loadMore}</div>
+        </div>
+    )
+}
+
+type SettingsProps = { uuid: Uuid, updateError: UpdateError, setShowSettings: Dispatch<SetStateAction<boolean>> }
+function Settings({ uuid, updateError, setShowSettings }: SettingsProps) {
+    const [allowance, setAllowance] = useState<number>()
+
+    const onOutsideClick = (event: MouseEvent) => {
+        if (event.target instanceof Element && !document.querySelector('.bank-settings')?.contains(event.target)) {
+            setShowSettings(false)
+        }
+    }
+
+    const onAllowanceChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const newAllowance = Number(event.target.value.replace('$', ''))
+        if (!isNaN(newAllowance)) {
+            setAllowance(newAllowance)
+        }
+    }
+
+    const onUpdate = async () => {
+        setShowSettings(false)
+        try {
+            // TODO: update allowance
+        } catch {
+            updateError()
+        }
+    }
+
+    return (
+        <div className='bank-settings-container' onClick={onOutsideClick}>
+            <div className='bank-settings bank-panel'>
+                <div>
+                    <label htmlFor='allowance'>Allowance</label>
+                    <input
+                        value={allowance ? `$${allowance}` : ''}
+                        id='allowance'
+                        onChange={onAllowanceChange}
+                    />
+                </div>
+                <button className='button update-button' onClick={onUpdate}>Update</button>
+            </div>
         </div>
     )
 }
