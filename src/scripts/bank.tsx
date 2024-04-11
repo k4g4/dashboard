@@ -1,3 +1,4 @@
+import { type JSX } from 'react'
 import ReactDOM from 'react-dom/client'
 import { Page, UuidContext } from '../components/page'
 import {
@@ -6,10 +7,12 @@ import {
 } from 'react'
 import {
     apiErrorSchema,
-    BANK_HISTORY_ENDPOINT, BANK_HISTORY_LENGTH, BANK_HISTORY_PAGE_PARAM, BANK_TRANSACT_ENDPOINT,
-    bankHistoryResponseSchema,
+    BANK_ACCOUNT_ENDPOINT, BANK_HISTORY_LENGTH, BANK_HISTORY_PAGE_PARAM, BANK_TRANSACT_ENDPOINT,
+    bankAccountResponseSchema,
     bankTransactBodySchema,
     bankTransactResponseSchema,
+    SET_ALLOWANCE_ENDPOINT,
+    setAllowanceBodySchema,
     UUID_PARAM,
     type Uuid
 } from '../api_schema'
@@ -24,12 +27,80 @@ ReactDOM.createRoot(document.getElementById(`root`)!).render(
     </Page>
 )
 
+type BankAccount = {
+    balance: number,
+    allowance: number,
+    hist: { balance: number, date: Moment }[],
+}
+
 function Bank() {
     const uuid = useContext(UuidContext)
     const updateError = useContext(UpdateErrorContext)
 
     const [reload, setReload] = useState(false)
+    const runReload = () => setReload(reload => !reload)
     const [showSettings, setShowSettings] = useState(false)
+    const [account, setAccount] = useState<BankAccount>()
+    const [page, setPage] = useState(0)
+    const [maybeMore, setMaybeMore] = useState(true)
+
+    useAsyncEffect(async isMounted => {
+        setPage(0)
+        const searchParams = new URLSearchParams({ [UUID_PARAM]: uuid, [BANK_HISTORY_PAGE_PARAM]: '0' })
+        try {
+            const response = await fetch(`/api/${BANK_ACCOUNT_ENDPOINT}?${searchParams}`)
+            const body = await response.json()
+            if (isMounted()) {
+                if (response.status === 200) {
+                    const { balance, allowance, hist } = bankAccountResponseSchema.parse(body)
+                    setAccount({
+                        balance,
+                        allowance,
+                        hist: hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) })),
+                    })
+                    setMaybeMore(hist.length === BANK_HISTORY_LENGTH)
+                } else {
+                    updateError(apiErrorSchema.parse(body).error)
+                }
+            }
+        } catch {
+            updateError()
+        }
+    }, [reload])
+
+    const onLoadMore = async () => {
+        const searchParams = new URLSearchParams({ [UUID_PARAM]: uuid, [BANK_HISTORY_PAGE_PARAM]: page.toString() })
+        try {
+            const response = await fetch(`/api/${BANK_ACCOUNT_ENDPOINT}?${searchParams}`)
+            const body = await response.json()
+            if (response.status === 200) {
+                const { hist } = bankAccountResponseSchema.parse(body)
+                const newHist = hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) }))
+                setAccount(account => account && ({
+                    ...account,
+                    hist: account.hist.concat(newHist),
+                }))
+                if (hist.length < BANK_HISTORY_LENGTH) {
+                    setMaybeMore(false)
+                } else {
+                    setPage(page + 1)
+                }
+            } else {
+                updateError(apiErrorSchema.parse(body).error)
+            }
+        } catch {
+            updateError()
+        }
+    }
+
+    const loadMore = (
+        maybeMore ?
+            <div className='bank-entry load-more-entry'>
+                <button className='load-more-button' onClick={onLoadMore}>Load more...</button>
+            </div>
+            :
+            undefined
+    )
 
     return (
         <div className='bank'>
@@ -38,20 +109,18 @@ function Bank() {
                 <Settings
                     uuid={uuid}
                     updateError={updateError}
+                    allowance={account ? account.allowance : 0}
+                    runReload={runReload}
                     setShowSettings={setShowSettings}
                 />
             }
             <Input
                 uuid={uuid}
                 updateError={updateError}
-                setReload={setReload}
+                runReload={runReload}
                 setShowSettings={setShowSettings}
             />
-            <History
-                uuid={uuid}
-                updateError={updateError}
-                reload={reload}
-            />
+            <History account={account} loadMore={loadMore} />
         </div>
     )
 }
@@ -61,10 +130,10 @@ type InputType = 'unit' | 'tenth' | 'hundredth' | 'disabled'
 type InputProps = {
     uuid: Uuid,
     updateError: UpdateError,
-    setReload: Dispatch<SetStateAction<boolean>>,
+    runReload: () => void,
     setShowSettings: Dispatch<SetStateAction<boolean>>,
 }
-function Input({ uuid, updateError, setReload, setShowSettings }: InputProps) {
+function Input({ uuid, updateError, runReload, setShowSettings }: InputProps) {
     const [amount, setAmount] = useState(0)
     const [inputType, setInputType] = useState<InputType>('unit')
     const [adding, setAdding] = useState(false);
@@ -132,7 +201,7 @@ function Input({ uuid, updateError, setReload, setShowSettings }: InputProps) {
                     const body = await response.json()
                     if (response.status === 200) {
                         const { newBalance } = bankTransactResponseSchema.parse(body)
-                        setReload(reload => !reload)
+                        runReload()
                     } else {
                         updateError(apiErrorSchema.parse(body).error)
                     }
@@ -183,35 +252,7 @@ function Input({ uuid, updateError, setReload, setShowSettings }: InputProps) {
     )
 }
 
-type BankEntry = { balance: number, date: Moment }
-
-function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: UpdateError, reload: boolean }) {
-    const [current, setCurrent] = useState(0)
-    const [history, setHistory] = useState<BankEntry[]>([])
-    const [maybeMore, setMaybeMore] = useState(true)
-    const [page, setPage] = useState(0)
-
-    useAsyncEffect(async isMounted => {
-        setPage(0)
-        const searchParams = new URLSearchParams({ [UUID_PARAM]: uuid, [BANK_HISTORY_PAGE_PARAM]: '0' })
-        try {
-            const response = await fetch(`/api/${BANK_HISTORY_ENDPOINT}?${searchParams}`)
-            const body = await response.json()
-            if (isMounted()) {
-                if (response.status === 200) {
-                    const { balance, hist } = bankHistoryResponseSchema.parse(body)
-                    setCurrent(balance)
-                    setHistory(hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) })))
-                    setMaybeMore(hist.length === BANK_HISTORY_LENGTH)
-                } else {
-                    updateError(apiErrorSchema.parse(body).error)
-                }
-            }
-        } catch {
-            updateError()
-        }
-    }, [reload])
-
+function History({ account, loadMore }: { account: BankAccount | undefined, loadMore: JSX.Element | undefined }) {
     const displayBalance = (balance: number) =>
         `${Math.ceil(balance * 100) < 0 ? '-' : ''}$${Math.abs(balance).toFixed(2)}`
     const displayDate = (date: Moment) =>
@@ -219,10 +260,11 @@ function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: Updat
 
     const currentEntry = (
         <div className='bank-entry bank-entry-current'>
-            <div className='bank-entry-balance'>{displayBalance(current)}</div>
+            <div className='bank-entry-balance'>{displayBalance(account ? account.balance : 0)}</div>
         </div>
     )
 
+    const history = account ? account.hist : []
     const olderEntries = history.map(({ balance, date }, i) => (
         <div key={i} className='bank-entry bank-entry-older'>
             <div className='bank-entry-balance'>{displayBalance(balance)}</div>
@@ -233,39 +275,6 @@ function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: Updat
     const showOlder: CSSProperties = {
         visibility: history.length > 1 ? 'visible' : 'hidden'
     }
-
-    const onLoadMore = async () => {
-        const searchParams = new URLSearchParams({ [UUID_PARAM]: uuid, [BANK_HISTORY_PAGE_PARAM]: page.toString() })
-        try {
-            const response = await fetch(`/api/${BANK_HISTORY_ENDPOINT}?${searchParams}`)
-            const body = await response.json()
-            if (response.status === 200) {
-                const { hist } = bankHistoryResponseSchema.parse(body)
-                setHistory(history =>
-                    history.concat(hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) })))
-                )
-                if (hist.length < BANK_HISTORY_LENGTH) {
-                    setMaybeMore(false)
-                } else {
-                    setPage(page + 1)
-                }
-            } else {
-                updateError(apiErrorSchema.parse(body).error)
-            }
-        } catch {
-            updateError()
-        }
-    }
-
-    const loadMore = (
-        maybeMore ?
-            <div className='bank-entry load-more-entry'>
-                <button className='load-more-button' onClick={onLoadMore}>Load more...</button>
-            </div>
-            :
-            null
-    )
-
     return (
         <div className='history'>
             <div className='bank-panel-label'>Current Balance</div>
@@ -276,9 +285,15 @@ function History({ uuid, updateError, reload }: { uuid: Uuid, updateError: Updat
     )
 }
 
-type SettingsProps = { uuid: Uuid, updateError: UpdateError, setShowSettings: Dispatch<SetStateAction<boolean>> }
-function Settings({ uuid, updateError, setShowSettings }: SettingsProps) {
-    const [allowance, setAllowance] = useState<number>()
+type SettingsProps = {
+    uuid: Uuid,
+    updateError: UpdateError,
+    allowance: number,
+    runReload: () => void,
+    setShowSettings: Dispatch<SetStateAction<boolean>>,
+}
+function Settings({ uuid, updateError, allowance, runReload, setShowSettings }: SettingsProps) {
+    const [newAllowance, setNewAllowance] = useState<number>(allowance)
 
     const onOutsideClick = (event: MouseEvent) => {
         if (event.target instanceof Element && !document.querySelector('.bank-settings')?.contains(event.target)) {
@@ -286,20 +301,26 @@ function Settings({ uuid, updateError, setShowSettings }: SettingsProps) {
         }
     }
 
-    const onAllowanceChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const onNewAllowanceChange = (event: ChangeEvent<HTMLInputElement>) => {
         const newAllowance = Number(event.target.value.replace('$', ''))
-        if (!isNaN(newAllowance)) {
-            setAllowance(newAllowance)
+        if (!isNaN(newAllowance) && newAllowance >= 0) {
+            setNewAllowance(newAllowance)
         }
     }
 
     const onUpdate = async () => {
-        setShowSettings(false)
         try {
-            // TODO: update allowance
+            const body: z.infer<typeof setAllowanceBodySchema> = { uuid, allowance: newAllowance }
+            const init: FetchRequestInit = { method: 'POST', body: JSON.stringify(body) }
+            const response = await fetch(`/api/${SET_ALLOWANCE_ENDPOINT}`, init)
+            if (response.status !== 200) {
+                updateError(apiErrorSchema.parse(await response.json()).error)
+            }
         } catch {
             updateError()
         }
+        runReload()
+        setShowSettings(false)
     }
 
     return (
@@ -308,9 +329,9 @@ function Settings({ uuid, updateError, setShowSettings }: SettingsProps) {
                 <div>
                     <label htmlFor='allowance'>Allowance</label>
                     <input
-                        value={allowance ? `$${allowance}` : ''}
+                        value={newAllowance ? `$${newAllowance}` : ''}
                         id='allowance'
-                        onChange={onAllowanceChange}
+                        onChange={onNewAllowanceChange}
                     />
                 </div>
                 <button className='button update-button' onClick={onUpdate}>Update</button>

@@ -22,9 +22,11 @@ export function Page({ children, pageName }: PropsWithChildren<{ pageName: PageN
     }, [uuid])
 
     useAsyncEffect(async isMounted => {
-        const response = await fetch(`/api/${LOGGED_IN_ENDPOINT}?${UUID_PARAM}=${uuid}`)
-        if (isMounted() && response.status !== 200) {
-            setUuid(null)
+        if (uuid) {
+            const response = await fetch(`/api/${LOGGED_IN_ENDPOINT}?${UUID_PARAM}=${uuid}`)
+            if (isMounted() && response.status !== 200) {
+                setUuid(null)
+            }
         }
     }, [])
 

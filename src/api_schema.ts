@@ -65,14 +65,22 @@ export const bankTransactResponseSchema = z.object({
     newBalance: z.number(),
 })
 
-export const BANK_HISTORY_ENDPOINT = 'bankhist'
+export const BANK_ACCOUNT_ENDPOINT = 'bankaccount'
 export const BANK_HISTORY_PAGE_PARAM = 'page'
 export const BANK_HISTORY_LENGTH = 30
 
-export const bankHistoryResponseSchema = z.object({
+export const bankAccountResponseSchema = z.object({
     balance: z.number().finite(),
+    allowance: z.number().finite(),
     hist: z.array(z.object({
         balance: z.number(),
         isoTimestamp: z.string().datetime(),
     })).max(BANK_HISTORY_LENGTH),
+})
+
+export const SET_ALLOWANCE_ENDPOINT = 'setallowance'
+
+export const setAllowanceBodySchema = z.object({
+    uuid: uuidSchema,
+    allowance: z.number().finite().nonnegative(),
 })

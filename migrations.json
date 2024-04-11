@@ -16,5 +16,11 @@
     [
         "CREATE TABLE bank(userUuid CHARACTER(36), isoTimestamp CHARACTER(24), balance REAL);",
         "CREATE INDEX bankHistory ON bank(userUuid, isoTimestamp DESC);"
+    ],
+    [
+        "CREATE TABLE userCopy(userUuid CHARACTER(36) PRIMARY KEY, loggedIn INT, allowance REAL);",
+        "INSERT INTO userCopy(userUuid, loggedIn, allowance) SELECT userUuid, loggedIn, 0 FROM user;",
+        "DROP TABLE user;",
+        "ALTER TABLE userCopy RENAME TO user;"
     ]
 ]

@@ -4,7 +4,7 @@ import { Db } from './database'
 import {
     DELETE_GALLERY_ENDPOINT, LOGIN_ENDPOINT, LOGOUT_ENDPOINT, UPLOAD_GALLERY_ENDPOINT,
     GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT, IMAGE_NAME_PARAM, LIST_GALLERY_ENDPOINT,
-    UUID_PARAM, BIO_ENDPOINT, BANK_TRANSACT_ENDPOINT, BANK_HISTORY_ENDPOINT,
+    UUID_PARAM, BIO_ENDPOINT, BANK_TRANSACT_ENDPOINT, BANK_ACCOUNT_ENDPOINT,
     BANK_HISTORY_LENGTH, BANK_HISTORY_PAGE_PARAM, LOGGED_IN_ENDPOINT,
     uuidSchema,
     type Uuid,
@@ -15,8 +15,10 @@ import {
     loginResponseSchema,
     listGalleryResponseSchema,
     bioResponseSchema,
-    bankHistoryResponseSchema,
-    bankTransactResponseSchema
+    bankAccountResponseSchema,
+    bankTransactResponseSchema,
+    SET_ALLOWANCE_ENDPOINT,
+    setAllowanceBodySchema
 } from './api_schema'
 import { z } from 'zod'
 
@@ -133,10 +135,10 @@ export class Dashboard {
                 const uuid = uuidSchema.parse(searchParams.get(UUID_PARAM))
                 return await this.getBio(uuid)
             }
-            case BANK_HISTORY_ENDPOINT: {
+            case BANK_ACCOUNT_ENDPOINT: {
                 const uuid = uuidSchema.parse(searchParams.get(UUID_PARAM))
                 const page = z.string().regex(/[0-9]+/).parse(searchParams.get(BANK_HISTORY_PAGE_PARAM))
-                return await this.bankHistory(uuid, Number(page))
+                return await this.bankAccount(uuid, Number(page))
             }
         }
         return this.serve404()
@@ -164,6 +166,10 @@ export class Dashboard {
             case BANK_TRANSACT_ENDPOINT: {
                 const bankTransactBody = bankTransactBodySchema.parse(await req.json())
                 return await this.bankTransact(bankTransactBody)
+            }
+            case SET_ALLOWANCE_ENDPOINT: {
+                const setAllowanceBody = setAllowanceBodySchema.parse(await req.json())
+                return await this.setAllowance(setAllowanceBody)
             }
         }
         return this.serve404()
@@ -325,13 +331,14 @@ export class Dashboard {
         return new Response()
     }
 
-    async bankHistory(uuid: Uuid, page: number) {
-        const histResult = this.db.getBankHistory(uuid, BANK_HISTORY_LENGTH, page * BANK_HISTORY_LENGTH)
-        const balanceResult = this.db.getBankBalance(uuid)
-        const body: z.infer<typeof bankHistoryResponseSchema> = {
-            balance: balanceResult?.balance || 0,
-            hist: histResult || [],
+    async bankAccount(uuid: Uuid, page: number) {
+        const allowance = this.db.getBankAllowance(uuid)
+        if (allowance === undefined) {
+            return this.serve400('user not found')
         }
+        const balance = this.db.getBankBalance(uuid) || 0
+        const hist = this.db.getBankHistory(uuid, BANK_HISTORY_LENGTH, page * BANK_HISTORY_LENGTH) || []
+        const body: z.infer<typeof bankAccountResponseSchema> = { balance, allowance, hist }
         return Response.json(body)
     }
 
@@ -344,6 +351,11 @@ export class Dashboard {
         this.db.newBalance(uuid, new Date().toISOString(), newBalance)
         const body: z.infer<typeof bankTransactResponseSchema> = { newBalance }
         return Response.json(body)
+    }
+
+    async setAllowance({ uuid, allowance }: z.infer<typeof setAllowanceBodySchema>) {
+        this.db.setAllowance(uuid, allowance)
+        return new Response()
     }
 
     serve() {
