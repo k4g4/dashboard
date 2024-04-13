@@ -32,6 +32,10 @@ COPY --from=prerelease /usr/src/app/pages pages
 COPY --from=prerelease /usr/src/app/assets assets
 COPY --from=prerelease /usr/src/app/build build
 
+# create persistent storage directory (use -v with docker run)
+RUN mkdir persist
+RUN chown bun persist
+
 # run the app
 USER bun
 EXPOSE 3000/tcp

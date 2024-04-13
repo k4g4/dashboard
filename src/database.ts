@@ -42,10 +42,10 @@ export class Db {
     }
 
     newGoogleAccount(googleId: string) {
-        const uuid = generateUuid() as Uuid
+        const uuid = uuidSchema.parse(generateUuid())
         this.db.transaction(() => {
             this.db.exec(`INSERT INTO googleAccount(googleId, userUuid) VALUES ('${googleId}', '${uuid}')`)
-            this.db.exec(`INSERT INTO user(userUuid, loggedIn) VALUES ('${uuid}', TRUE)`)
+            this.db.exec(`INSERT INTO user(userUuid, loggedIn, allowance) VALUES ('${uuid}', TRUE, 0)`)
         })()
         return uuid
     }
@@ -64,12 +64,12 @@ export class Db {
     }
 
     newAccount(username: string, passwordHash: string) {
-        const uuid = generateUuid() as Uuid
+        const uuid = uuidSchema.parse(generateUuid())
         this.db.transaction(() => {
             const query = `INSERT INTO account(username, passwordHash, userUuid) VALUES `
                 + `('${username}', '${passwordHash}', '${uuid}')`
             this.db.exec(query)
-            this.db.exec(`INSERT INTO user(userUuid, loggedIn) VALUES ('${uuid}', TRUE)`)
+            this.db.exec(`INSERT INTO user(userUuid, loggedIn, allowance) VALUES ('${uuid}', TRUE, 0)`)
         })()
         return uuid
     }
