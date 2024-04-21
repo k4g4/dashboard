@@ -39,4 +39,5 @@ RUN chown bun persist
 # run the app
 USER bun
 EXPOSE 3000/tcp
+ENV TIMEZONE=America/Chicago
 ENTRYPOINT [ "./dashboard" ]

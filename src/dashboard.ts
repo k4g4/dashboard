@@ -21,12 +21,13 @@ import {
     setAllowanceBodySchema
 } from './api_schema'
 import { z } from 'zod'
-import moment, { type Moment } from 'moment'
+import moment, { type Moment } from 'moment-timezone'
 
 const BUILD_DIR = Bun.env.BUILD_DIR ?? 'build'
 const PERSIST_DIR = Bun.env.PERSIST_DIR ?? 'persist'
 const PORT = Bun.env.PORT ?? '3000'
 const DEVELOPMENT = Bun.env.DEVELOPMENT === 'true'
+const TIMEZONE = Bun.env.TIMEZONE ?? 'UTC'
 
 const SRC_DIR = 'src'
 const PAGE_SCRIPTS = `${SRC_DIR}/scripts`
@@ -334,7 +335,7 @@ export class Dashboard {
     }
 
     calcNewBalance(balance: number, prevDate: Moment, allowance: number) {
-        const days = moment().startOf('day').diff(prevDate.startOf('day'), 'days')
+        const days = moment.tz(TIMEZONE).startOf('day').diff(prevDate.startOf('day'), 'days')
         return balance + (days * allowance)
     }
 
