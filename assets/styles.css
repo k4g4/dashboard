@@ -13,11 +13,17 @@
     --login-width: 400px;
 }
 
+html {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
 body {
     margin: 0;
     background-color: var(--harsh-gray);
     color: var(--egg-white);
     font-family: "Roboto", sans-serif;
+    max-width: 100%;
     overflow-x: hidden;
 }
 
