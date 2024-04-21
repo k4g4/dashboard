@@ -1,10 +1,11 @@
-import React, { createContext, useEffect, useState, type PropsWithChildren } from 'react'
+import { createContext, StrictMode, useEffect, useState, type PropsWithChildren } from 'react'
 import { Navbar } from './navbar'
 import { Login } from './login'
 import { ErrorProvider } from './error'
 import { NIL } from 'uuid'
 import { LOGGED_IN_ENDPOINT, UUID_PARAM, uuidSchema, type Uuid } from '../api_schema'
 import useAsyncEffect from 'use-async-effect'
+import { ModalProvider } from './modal'
 
 export type PageName = 'home' | 'bank' | 'passwords' | 'shopping'
 
@@ -31,20 +32,22 @@ export function Page({ children, pageName }: PropsWithChildren<{ pageName: PageN
     }, [])
 
     return (
-        <React.StrictMode>
-            <ErrorProvider>
-                {
-                    uuid ?
-                        <UuidContext.Provider value={uuid}>
-                            <Navbar pageName={pageName} setDim={setDim} />
-                            <div className={dim ? 'page-container dim' : 'page-container'}>
-                                {children}
-                            </div>
-                        </UuidContext.Provider>
-                        :
-                        <Login setUuid={setUuid} />
-                }
-            </ErrorProvider>
-        </React.StrictMode>
+        <StrictMode>
+            <ModalProvider>
+                <ErrorProvider>
+                    {
+                        uuid ?
+                            <UuidContext.Provider value={uuid}>
+                                <Navbar pageName={pageName} setDim={setDim} />
+                                <div className={dim ? 'page-container dim' : 'page-container'}>
+                                    {children}
+                                </div>
+                            </UuidContext.Provider>
+                            :
+                            <Login setUuid={setUuid} />
+                    }
+                </ErrorProvider>
+            </ModalProvider>
+        </StrictMode>
     )
 }

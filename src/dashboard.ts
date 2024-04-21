@@ -1,3 +1,4 @@
+import { $ } from 'bun'
 import { readdirSync, mkdirSync, statSync } from 'node:fs'
 import { opendir, mkdir, stat, unlink } from 'node:fs/promises'
 import { Db } from './database'
@@ -34,6 +35,7 @@ const PAGE_SCRIPTS = `${SRC_DIR}/scripts`
 const PAGES_DIR = 'pages'
 const ASSETS_DIR = 'assets'
 const DATA_DIR = `${PERSIST_DIR}/data`
+const GALLERY = 'gallery'
 
 export class Dashboard {
     scripts: Map<string, number>
@@ -280,7 +282,7 @@ export class Dashboard {
     }
 
     async listGallery(uuid: Uuid) {
-        const dir = `${DATA_DIR}/${uuid}`
+        const dir = `${DATA_DIR}/${uuid}/${GALLERY}`
         await mkdir(dir, { recursive: true })
 
         const files: { mtimeMs: number, path: string }[] = []
@@ -297,7 +299,7 @@ export class Dashboard {
 
     async uploadGallery(formData: FormData) {
         const uuid = uuidSchema.parse(formData.get('uuid'))
-        const dir = `${DATA_DIR}/${uuid}`
+        const dir = `${DATA_DIR}/${uuid}/${GALLERY}`
 
         let files: File[] = []
         formData.forEach(file => {
@@ -315,7 +317,7 @@ export class Dashboard {
 
     async deleteGallery(uuid: Uuid, name: string) {
         try {
-            await unlink(`${DATA_DIR}/${uuid}/${name}`)
+            await unlink(`${DATA_DIR}/${uuid}/${GALLERY}/${name}`)
         } catch {
             return this.serve400('unknown file')
         }

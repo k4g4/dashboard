@@ -17,6 +17,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@bitwarden/cli": "^2024.3.1",
     "@react-oauth/google": "latest",
     "jwt-decode": "^4.0.0",
     "moment": "^2.30.1",

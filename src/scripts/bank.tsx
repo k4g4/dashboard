@@ -1,4 +1,4 @@
-import { type JSX } from 'react'
+import { useRef, type JSX } from 'react'
 import ReactDOM from 'react-dom/client'
 import { Page, UuidContext } from '../components/page'
 import {
@@ -20,6 +20,7 @@ import { UpdateErrorContext, type UpdateError } from '../components/error'
 import useAsyncEffect from 'use-async-effect'
 import moment, { type Moment } from 'moment'
 import type { z } from 'zod'
+import { ShowModalContext, type ShowModal } from '../components/modal'
 
 ReactDOM.createRoot(document.getElementById(`root`)!).render(
     <Page pageName='bank'>
@@ -39,7 +40,6 @@ function Bank() {
 
     const [reload, setReload] = useState(false)
     const runReload = () => setReload(reload => !reload)
-    const [showSettings, setShowSettings] = useState(false)
     const [account, setAccount] = useState<BankAccount>()
     const [page, setPage] = useState(0)
     const [maybeMore, setMaybeMore] = useState(true)
@@ -104,21 +104,11 @@ function Bank() {
 
     return (
         <div className='bank'>
-            {
-                showSettings &&
-                <Settings
-                    uuid={uuid}
-                    updateError={updateError}
-                    allowance={account ? account.allowance : 0}
-                    runReload={runReload}
-                    setShowSettings={setShowSettings}
-                />
-            }
             <Input
                 uuid={uuid}
                 updateError={updateError}
+                account={account}
                 runReload={runReload}
-                setShowSettings={setShowSettings}
             />
             <History account={account} loadMore={loadMore} />
         </div>
@@ -130,10 +120,12 @@ type InputType = 'unit' | 'tenth' | 'hundredth' | 'disabled'
 type InputProps = {
     uuid: Uuid,
     updateError: UpdateError,
+    account: BankAccount | undefined,
     runReload: () => void,
-    setShowSettings: Dispatch<SetStateAction<boolean>>,
 }
-function Input({ uuid, updateError, runReload, setShowSettings }: InputProps) {
+function Input({ uuid, updateError, account, runReload }: InputProps) {
+    const showModal = useContext(ShowModalContext)
+
     const [amount, setAmount] = useState(0)
     const [inputType, setInputType] = useState<InputType>('unit')
     const [adding, setAdding] = useState(false);
@@ -182,7 +174,15 @@ function Input({ uuid, updateError, runReload, setShowSettings }: InputProps) {
             } else if (label === '-') {
                 setAdding(false)
             } else if (label === '$') {
-                setShowSettings(true)
+                showModal(
+                    <Settings
+                        uuid={uuid}
+                        updateError={updateError}
+                        runReload={runReload}
+                        showModal={showModal}
+                        allowance={account?.allowance ?? 0}
+                    />
+                )
             } else if (label === '↲' && amount !== 0) {
                 setAmount(0)
                 setInputType('unit')
@@ -288,18 +288,13 @@ function History({ account, loadMore }: { account: BankAccount | undefined, load
 type SettingsProps = {
     uuid: Uuid,
     updateError: UpdateError,
-    allowance: number,
+    showModal: ShowModal,
     runReload: () => void,
-    setShowSettings: Dispatch<SetStateAction<boolean>>,
+    allowance: number,
 }
-function Settings({ uuid, updateError, allowance, runReload, setShowSettings }: SettingsProps) {
+function Settings({ uuid, updateError, showModal, runReload, allowance }: SettingsProps) {
     const [newAllowance, setNewAllowance] = useState<number>(allowance)
-
-    const onOutsideClick = (event: MouseEvent) => {
-        if (event.target instanceof Element && !document.querySelector('.bank-settings')?.contains(event.target)) {
-            setShowSettings(false)
-        }
-    }
+    const bankSettings = useRef<HTMLDivElement | null>(null)
 
     const onNewAllowanceChange = (event: ChangeEvent<HTMLInputElement>) => {
         const newAllowance = Number(event.target.value.replace('$', ''))
@@ -320,22 +315,20 @@ function Settings({ uuid, updateError, allowance, runReload, setShowSettings }: 
             updateError()
         }
         runReload()
-        setShowSettings(false)
+        showModal(null)
     }
 
     return (
-        <div className='bank-settings-container' onClick={onOutsideClick}>
-            <div className='bank-settings bank-panel'>
-                <div>
-                    <label htmlFor='allowance'>Allowance</label>
-                    <input
-                        value={newAllowance ? `$${newAllowance}` : ''}
-                        id='allowance'
-                        onChange={onNewAllowanceChange}
-                    />
-                </div>
-                <button className='button update-button' onClick={onUpdate}>Update</button>
+        <div className='bank-settings bank-panel' ref={bankSettings}>
+            <div>
+                <label htmlFor='allowance'>Allowance</label>
+                <input
+                    value={newAllowance ? `$${newAllowance}` : ''}
+                    id='allowance'
+                    onChange={onNewAllowanceChange}
+                />
             </div>
+            <button className='button update-button' onClick={onUpdate}>Update</button>
         </div>
     )
 }
