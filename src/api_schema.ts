@@ -84,3 +84,12 @@ export const setAllowanceBodySchema = z.object({
     uuid: uuidSchema,
     allowance: z.number().finite().nonnegative(),
 })
+
+export const passwordsEntrySchema = z.object({
+    id: uuidSchema,
+    website: z.string(),
+    name: z.string(),
+    password: z.string(),
+    favorite: z.boolean(),
+})
+export type PasswordsEntry = z.infer<typeof passwordsEntrySchema>

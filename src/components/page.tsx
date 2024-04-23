@@ -31,23 +31,25 @@ export function Page({ children, pageName }: PropsWithChildren<{ pageName: PageN
         }
     }, [])
 
-    return (
-        <StrictMode>
-            <ModalProvider>
-                <ErrorProvider>
-                    {
-                        uuid ?
-                            <UuidContext.Provider value={uuid}>
-                                <Navbar pageName={pageName} setDim={setDim} />
-                                <div className={dim ? 'page-container dim' : 'page-container'}>
-                                    {children}
-                                </div>
-                            </UuidContext.Provider>
-                            :
-                            <Login setUuid={setUuid} />
-                    }
-                </ErrorProvider>
-            </ModalProvider>
-        </StrictMode>
+    const page = (
+        <ModalProvider>
+            <ErrorProvider>
+                {
+                    uuid ?
+                        <UuidContext.Provider value={uuid}>
+                            <Navbar pageName={pageName} setDim={setDim} />
+                            <div className={dim ? 'page-container dim' : 'page-container'}>
+                                {children}
+                            </div>
+                        </UuidContext.Provider>
+                        :
+                        <Login setUuid={setUuid} />
+                }
+            </ErrorProvider>
+        </ModalProvider>
     )
+
+    const development = document.querySelector<HTMLElement>('#root')!.dataset.development === 'true'
+
+    return development ? <StrictMode>{page}</StrictMode> : page
 }

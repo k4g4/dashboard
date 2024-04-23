@@ -22,7 +22,7 @@ import moment, { type Moment } from 'moment'
 import type { z } from 'zod'
 import { ShowModalContext, type ShowModal } from '../components/modal'
 
-ReactDOM.createRoot(document.getElementById(`root`)!).render(
+ReactDOM.createRoot(document.getElementById('root')!).render(
     <Page pageName='bank'>
         <Bank />
     </Page>
