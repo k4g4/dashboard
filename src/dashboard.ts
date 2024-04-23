@@ -23,6 +23,7 @@ import {
 } from './api_schema'
 import { z } from 'zod'
 import moment, { type Moment } from 'moment-timezone'
+import { include } from './include_macro' with { type: 'macro' }
 
 const BUILD_DIR = Bun.env.BUILD_DIR ?? 'build'
 const PERSIST_DIR = Bun.env.PERSIST_DIR ?? 'persist'
@@ -30,9 +31,11 @@ const PORT = Bun.env.PORT ?? '3000'
 const DEVELOPMENT = Bun.env.DEVELOPMENT === 'true'
 const TIMEZONE = Bun.env.TIMEZONE ?? 'UTC'
 
+const TEMPLATE = include('pages/template.htm')
+const NAME_FIELD = '{NAME}'
+const DEV_FIELD = '{DEVELOPMENT}'
 const SRC_DIR = 'src'
 const PAGE_SCRIPTS = `${SRC_DIR}/scripts`
-const PAGES_DIR = 'pages'
 const ASSETS_DIR = 'assets'
 const DATA_DIR = `${PERSIST_DIR}/data`
 const GALLERY = 'gallery'
@@ -60,11 +63,11 @@ export class Dashboard {
 
     async fetch(req: Request) {
         const { method, url } = req
-        const { pathname, searchParams } = new URL(url)
+        const { pathname: pathName, searchParams } = new URL(url)
 
-        if (pathname.startsWith('/api')) {
+        if (pathName.startsWith('/api')) {
             // trim off /api/
-            const endpoint = pathname.slice(5)
+            const endpoint = pathName.slice(5)
             try {
                 if (method === 'GET') {
                     return await this.serveGetApi(endpoint, searchParams)
@@ -88,27 +91,22 @@ export class Dashboard {
         }
 
         if (method === 'GET') {
-            if (pathname.endsWith('.js')) {
-                return await this.fetchScript(pathname)
+            if (pathName.endsWith('.js')) {
+                return await this.fetchScript(pathName)
             }
 
-            if (pathname.startsWith(`/${DATA_DIR}`)) {
-                return await this.fetchData(pathname)
+            if (pathName.startsWith(`/${DATA_DIR}`)) {
+                const dataPath = pathName.slice(1) // strip leading /
+                return new Response(Bun.file(dataPath))
             }
 
-            if (['.ico', '.png', '.css', '.jpg'].some(ext => pathname.endsWith(ext))) {
-                return await this.fetchAsset(pathname);
+            if (['.ico', '.png', '.css', '.jpg'].some(ext => pathName.endsWith(ext))) {
+                return new Response(Bun.file(`${ASSETS_DIR}${pathName}`))
             }
 
-            let page;
-            if (pathname === '/') {
-                page = '/index.htm'
-            } else if (!pathname.endsWith('.htm')) {
-                page = `${pathname}.htm`
-            } else {
-                page = pathname
-            }
-            return await this.fetchPage(page)
+            const pageName = pathName.replace('/', '').replace('.html', '').replace('.htm', '') || 'home'
+            const page = TEMPLATE.replaceAll(NAME_FIELD, pageName).replaceAll(DEV_FIELD, DEVELOPMENT.toString())
+            return new Response(page, { headers: { 'content-type': 'text/html' } })
         }
 
         return this.serve404()
@@ -202,24 +200,6 @@ export class Dashboard {
         }
 
         return new Response(Bun.file(`${BUILD_DIR}/${builtScriptName}`))
-    }
-
-    async fetchData(data: string) {
-        const path = data.slice(1) // strip leading /
-        return new Response(Bun.file(path))
-    }
-
-    async fetchAsset(asset: string) {
-        return new Response(Bun.file(`${ASSETS_DIR}${asset}`))
-    }
-
-    async fetchPage(pathname: string) {
-        const page = Bun.file(`${PAGES_DIR}${pathname}`)
-        if (await page.exists()) {
-            return new Response(page)
-        } else {
-            return this.serve404()
-        }
     }
 
     serve400(error: string) {
