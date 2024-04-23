@@ -1,4 +1,5 @@
-export function include(path: string): string {
-    //@ts-ignore (bun will await promises in macros)
-    return Bun.file(path).text()
+import { readFileSync } from 'node:fs'
+
+export function include(path: string) {
+    return readFileSync(path).toString()
 }
