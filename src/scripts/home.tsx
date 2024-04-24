@@ -94,7 +94,9 @@ function Bio() {
         <div className='section'>
             <h1>Bio</h1>
             <div className='section-header bio-header'>
-                <button className='button update-bio-button' onClick={onUpdateBio}>{ICONS.EDIT}</button>
+                <button className='icon-button update-bio-button' onClick={onUpdateBio} title='Update Bio'>
+                    {ICONS.EDIT}
+                </button>
             </div>
             {
                 !editing ?
@@ -211,8 +213,12 @@ function Gallery() {
             <h1>Gallery</h1>
             <div className='section-header gallery-header'>
                 <input type='file' accept='image/*' multiple />
-                <button className='button upload-button' onClick={onUpload}>{ICONS.UPLOAD}</button>
-                <button className='button delete-button' onClick={onDelete}>{ICONS.XMARK}</button>
+                <button className='icon-button upload-button' onClick={onUpload} title='Upload'>
+                    {ICONS.UPLOAD}
+                </button>
+                <button className='icon-button delete-button' onClick={onDelete} title='Delete'>
+                    {ICONS.XMARK}
+                </button>
             </div>
             <div className='viewer'>
                 <Arrow dir='left' onArrowClick={decrementImageIndex} hide={fullscreen} />

@@ -1,8 +1,9 @@
 import { closeSync, openSync, mkdirSync } from 'node:fs'
 import { Database } from 'bun:sqlite'
-import { uuidSchema, type Uuid } from './api_schema'
+import { uuidSchema, type PasswordsEntry, type Uuid } from './api_schema'
 import { v4 as generateUuid } from 'uuid'
 import migrations from '../migrations.json'
+import type { z } from 'zod'
 
 const PERSIST_DIR = Bun.env.PERSIST_DIR ?? 'persist'
 const DB_DIR = `${PERSIST_DIR}/db`
@@ -131,5 +132,32 @@ export class Db {
     setAllowance(uuid: Uuid, allowance: number) {
         const query = `UPDATE user SET allowance = ${allowance} WHERE userUuid = '${uuid}'`
         this.db.exec(query)
+    }
+
+    getPasswords(uuid: Uuid) {
+        const query = (
+            'SELECT passUuid, siteUrl, siteName, username, password, favorite FROM password ' +
+            `WHERE userUuid = '${uuid}' ORDER BY siteName`
+        )
+        type GetPasswordsResult = {
+            passUuid: string,
+            siteUrl: string,
+            siteName: string,
+            username: string,
+            password: string,
+            favorite: number,
+        }
+        const results = this.db.query(query).all() as GetPasswordsResult[] | null
+        if (results) {
+            return results.map((result): PasswordsEntry => ({
+                entryUuid: uuidSchema.parse(result.passUuid),
+                siteUrl: result.siteUrl,
+                siteName: result.siteName,
+                username: result.username,
+                password: result.password,
+                favorite: result.favorite == 1,
+            }))
+        }
+        return []
     }
 }

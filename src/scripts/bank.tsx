@@ -319,7 +319,7 @@ function Settings({ uuid, updateError, showModal, runReload, allowance }: Settin
     }
 
     return (
-        <div className='bank-settings bank-panel' ref={bankSettings}>
+        <div className='bank-settings' ref={bankSettings}>
             <div>
                 <label htmlFor='allowance'>Allowance</label>
                 <input

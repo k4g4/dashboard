@@ -9,7 +9,9 @@ import {
     BANK_HISTORY_LENGTH, BANK_HISTORY_PAGE_PARAM, LOGGED_IN_ENDPOINT, SET_ALLOWANCE_ENDPOINT,
     uuidSchema, type Uuid, loginBodySchema, bioBodySchema, bankTransactBodySchema,
     apiErrorSchema, loginResponseSchema, listGalleryResponseSchema, bioResponseSchema,
-    bankAccountResponseSchema, bankTransactResponseSchema, setAllowanceBodySchema
+    bankAccountResponseSchema, bankTransactResponseSchema, setAllowanceBodySchema,
+    GET_PASSWORDS_ENDPOINT,
+    getPasswordsResponseSchema
 } from './api_schema'
 import { z } from 'zod'
 import moment, { type Moment } from 'moment-timezone'
@@ -132,6 +134,10 @@ export class Dashboard {
                 const uuid = uuidSchema.parse(searchParams.get(UUID_PARAM))
                 const page = z.string().regex(/[0-9]+/).parse(searchParams.get(BANK_HISTORY_PAGE_PARAM))
                 return await this.bankAccount(uuid, Number(page))
+            }
+            case GET_PASSWORDS_ENDPOINT: {
+                const uuid = uuidSchema.parse(searchParams.get(UUID_PARAM))
+                return await this.getPasswords(uuid)
             }
         }
         return this.serve404()
@@ -307,7 +313,7 @@ export class Dashboard {
     }
 
     calcNewBalance(balance: number, prevDate: Moment, allowance: number) {
-        const days = moment.tz(TIMEZONE).startOf('day').diff(prevDate.startOf('day'), 'days')
+        const days = moment.tz(TIMEZONE).startOf('day').diff(prevDate.tz(TIMEZONE).startOf('day'), 'days')
         return balance + (days * allowance)
     }
 
@@ -350,6 +356,11 @@ export class Dashboard {
     async setAllowance({ uuid, allowance }: z.infer<typeof setAllowanceBodySchema>) {
         this.db.setAllowance(uuid, allowance)
         return new Response()
+    }
+
+    async getPasswords(uuid: Uuid) {
+        const entries = this.db.getPasswords(uuid)
+        return Response.json(entries)
     }
 
     serve() {

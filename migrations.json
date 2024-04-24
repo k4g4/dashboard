@@ -22,5 +22,9 @@
         "INSERT INTO userCopy(userUuid, loggedIn, allowance) SELECT userUuid, loggedIn, 0 FROM user;",
         "DROP TABLE user;",
         "ALTER TABLE userCopy RENAME TO user;"
+    ],
+    [
+        "CREATE TABLE password(passUuid CHARACTER(36) PRIMARY KEY, userUuid CHARACTER(36) REFERENCES user(userUuid), siteUrl TEXT, siteName TEXT, username TEXT, password TEXT, favorite INT);",
+        "CREATE INDEX passwordGetAllForUser ON password(userUuid, siteName);"
     ]
 ]

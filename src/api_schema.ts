@@ -86,10 +86,15 @@ export const setAllowanceBodySchema = z.object({
 })
 
 export const passwordsEntrySchema = z.object({
-    id: uuidSchema,
-    website: z.string(),
-    name: z.string(),
-    password: z.string(),
+    entryUuid: uuidSchema,
     favorite: z.boolean(),
+    siteName: z.string(),
+    siteUrl: z.string(),
+    username: z.string(),
+    password: z.string(),
 })
 export type PasswordsEntry = z.infer<typeof passwordsEntrySchema>
+
+export const GET_PASSWORDS_ENDPOINT = 'getpasswords'
+
+export const getPasswordsResponseSchema = z.array(passwordsEntrySchema)

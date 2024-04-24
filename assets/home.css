@@ -1,20 +1,14 @@
 .upload-button {
     margin-right: 15px;
     margin-bottom: 10px;
-    width: 45px;
-    height: 35px;
 }
 
 .upload-button svg {
-    padding-top: 1px;
-    height: 20px;
-    fill: var(--egg-white);
+    padding-top: 2px;
 }
 
 .delete-button {
     margin-bottom: 10px;
-    width: 45px;
-    height: 35px;
     background-color: var(--warning);
 }
 
@@ -25,7 +19,6 @@
 .delete-button svg {
     height: 30px;
     padding-top: 2px;
-    fill: var(--egg-white);
 }
 
 input[type="file"] {
@@ -93,16 +86,6 @@ input[type="file"] {
     font-size: 20px;
 }
 
-.update-bio-button {
-    width: 45px;
-    height: 35px;
-}
-
-.update-bio-button svg {
-    height: 20px;
-    fill: var(--egg-white);
-}
-
 .bio-editor {
     display: flex;
     flex-direction: column;
@@ -124,7 +107,5 @@ input[type="file"] {
 }
 
 .bio-submit-button {
-    width: 90px;
-    height: 45px;
     margin-top: 30px;
 }

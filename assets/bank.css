@@ -66,16 +66,17 @@
     display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr;
     margin: 10px;
+    gap: 10px;
     user-select: none;
 }
 
 .numkey {
     display: flex;
     font-size: 35px;
-    margin: 5px;
     align-items: center;
     justify-content: center;
     font-weight: bold;
+    width: auto;
 }
 
 .bank-entry {
@@ -139,9 +140,8 @@
     text-align: right;
 }
 
-.button.update-button {
+.update-button {
     font-size: 16px;
-    padding: 10px;
     border-radius: 8px;
     max-width: 120px;
 }
