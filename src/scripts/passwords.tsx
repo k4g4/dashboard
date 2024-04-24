@@ -1,8 +1,8 @@
 import ReactDOM from 'react-dom/client'
 import { Page, UuidContext } from '../components/page'
 import {
-    Fragment, useContext, useReducer, useState,
-    type ChangeEvent, type Dispatch, type SetStateAction
+    Fragment, useContext, useReducer, useRef, useState,
+    type ChangeEvent, type Dispatch, type MouseEvent, type SetStateAction
 } from 'react'
 import {
     apiErrorSchema, GET_PASSWORDS_ENDPOINT, getPasswordsResponseSchema, UUID_PARAM, uuidSchema,
@@ -50,6 +50,8 @@ function updatePasswords(passwords: PasswordsEntry[], update: Update): Passwords
     }
 }
 
+const FADE_OUT_TIME = 1_000
+
 function Passwords() {
     const uuid = useContext(UuidContext)
     const updateError = useContext(UpdateErrorContext)
@@ -63,6 +65,8 @@ function Passwords() {
         { favorite: false, entryUuid: uuidSchema.parse('04c7ebf2-ac3c-48ed-bf1c-00e8498df01f'), password: 'foobar', siteName: 'jumping', siteUrl: 'http://www.blah.com', username: 'blahh' },
         { favorite: false, entryUuid: uuidSchema.parse('bdde9844-aefd-4dae-b68e-22f7d2daf20a'), password: 'bazqux', siteName: 'over', siteUrl: 'https://foo.com/', username: 'blah' },
     ]
+    const [reload, setReload] = useState(false)
+    const runReload = () => setReload(reload => !reload)
 
     useAsyncEffect(async isMounted => {
         try {
@@ -79,7 +83,26 @@ function Passwords() {
         } catch {
             updateError()
         }
-    }, [])
+    }, [reload])
+
+    const copiedBanner = useRef<HTMLDivElement>(null)
+    const [copiedTimer, setCopiedTimer] = useState<Timer>()
+
+    const updateCopied = (x: number, y: number) => {
+        if (copiedBanner.current) {
+            copiedBanner.current.style.left = `${x + 12}px`
+            copiedBanner.current.style.top = `${y + 24}px`
+            copiedBanner.current.style.display = 'block'
+            for (const animation of copiedBanner.current.getAnimations()) {
+                animation.cancel()
+                animation.play()
+            }
+        }
+        if (copiedTimer) {
+            clearTimeout(copiedTimer)
+        }
+        setCopiedTimer(setTimeout(() => setCopiedTimer(undefined), FADE_OUT_TIME))
+    }
 
     const entryMapper = (passwords: PasswordsEntry[]) => {
         return passwords.map(entry => (
@@ -88,6 +111,7 @@ function Passwords() {
                 entry={entry}
                 showModal={showModal}
                 passwordsUpdate={passwordsUpdate}
+                updateCopied={updateCopied}
             />
         ))
     }
@@ -103,7 +127,10 @@ function Passwords() {
                     :
                     <></>
             }
-            <Options showModal={showModal} passwordsUpdate={passwordsUpdate} />
+            <Options showModal={showModal} passwordsUpdate={passwordsUpdate} runReload={runReload} />
+            <div className='copied-banner drop-shadow' ref={copiedBanner}>
+                <h3>Copied!</h3>
+            </div>
         </div>
     )
 }
@@ -112,9 +139,11 @@ type EntryProps = {
     entry: PasswordsEntry,
     showModal: ShowModal,
     passwordsUpdate: Dispatch<Update>,
+    updateCopied: (x: number, y: number) => void,
 }
-function Entry({ entry, showModal, passwordsUpdate }: EntryProps) {
+function Entry({ entry, showModal, passwordsUpdate, updateCopied }: EntryProps) {
     const { entryUuid, siteName, siteUrl, favorite, username, password } = entry
+    const hiddenPassword = '•'.repeat(password.length)
 
     const onFavToggle = () => {
         passwordsUpdate({ type: 'togglefav', entryUuid })
@@ -134,6 +163,21 @@ function Entry({ entry, showModal, passwordsUpdate }: EntryProps) {
         )
     }
 
+    const onCopy = (copyText: string) => {
+        return (event: MouseEvent) => {
+            navigator.clipboard.writeText(copyText)
+            updateCopied(event.clientX, event.clientY)
+        }
+    }
+
+    const onShowPassword = (event: MouseEvent<HTMLSpanElement>) => {
+        event.currentTarget.textContent = password
+    }
+
+    const onHidePassword = (event: MouseEvent<HTMLSpanElement>) => {
+        event.currentTarget.textContent = hiddenPassword
+    }
+
     return (
         <ul className='passwords-entry'>
             <button
@@ -149,7 +193,21 @@ function Entry({ entry, showModal, passwordsUpdate }: EntryProps) {
                     {siteName} - {siteUrl}
                 </div>
                 <div className='passwords-entry-credentials'>
-                    {username}: {password}
+                    <span
+                        className='credential'
+                        onClick={onCopy(username)}
+                    >
+                        {username}
+                    </span>
+                    &nbsp;
+                    <span
+                        className='credential credential-password'
+                        onClick={onCopy(password)}
+                        onMouseEnter={onShowPassword}
+                        onMouseLeave={onHidePassword}
+                    >
+                        {hiddenPassword}
+                    </span>
                 </div>
             </div>
 
@@ -173,11 +231,16 @@ function Entry({ entry, showModal, passwordsUpdate }: EntryProps) {
     )
 }
 
-function Options({ showModal, passwordsUpdate }: { showModal: ShowModal, passwordsUpdate: Dispatch<Update> }) {
+type OptionsProps = {
+    showModal: ShowModal,
+    passwordsUpdate: Dispatch<Update>,
+    runReload: () => void,
+}
+function Options({ showModal, passwordsUpdate, runReload }: OptionsProps) {
     return (
         <div className='passwords-options'>
             <button className='button' onClick={() => showModal(<Add passwordsUpdate={passwordsUpdate} />)}>Add</button>
-            <button className='button' onClick={() => showModal(<Import />)}>Import</button>
+            <button className='button' onClick={() => showModal(<Import runReload={runReload} />)}>Import</button>
             <button className='button' onClick={() => showModal(<Export />)}>Export</button>
         </div>
     )
@@ -346,7 +409,7 @@ function Add({ passwordsUpdate }: { passwordsUpdate: Dispatch<Update> }) {
     />
 }
 
-function Import() {
+function Import({ runReload }: { runReload: () => void }) {
     const [clientId, setClientId] = useState('')
     const [clientSecret, setClientSecret] = useState('')
     const [password, setPassword] = useState('')

@@ -312,7 +312,6 @@ nav .logout-icon {
 @keyframes fade-out {
     from {
         color: var(--egg-white);
-        background-color: var(--warning);
     }
 
     to {
