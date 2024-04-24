@@ -1,9 +1,15 @@
 import ReactDOM from 'react-dom/client'
 import { Page, UuidContext } from '../components/page'
-import { useContext, useReducer, useState, type ChangeEvent, type Dispatch, type PropsWithChildren, type SetStateAction } from 'react'
-import { apiErrorSchema, GET_PASSWORDS_ENDPOINT, getPasswordsResponseSchema, UUID_PARAM, uuidSchema, type PasswordsEntry, type Uuid } from '../api_schema'
+import {
+    Fragment, useContext, useReducer, useState,
+    type ChangeEvent, type Dispatch, type SetStateAction
+} from 'react'
+import {
+    apiErrorSchema, GET_PASSWORDS_ENDPOINT, getPasswordsResponseSchema, UUID_PARAM, uuidSchema,
+    type PasswordsEntry, type Uuid
+} from '../api_schema'
 import useAsyncEffect from 'use-async-effect'
-import { UpdateErrorContext, type UpdateError } from '../components/error'
+import { UpdateErrorContext } from '../components/error'
 import { ICONS } from '../components/icons'
 import { ShowModalContext, type ShowModal } from '../components/modal'
 
@@ -114,6 +120,20 @@ function Entry({ entry, showModal, passwordsUpdate }: EntryProps) {
         passwordsUpdate({ type: 'togglefav', entryUuid })
     }
 
+    const onEditClick = () => {
+        showModal(<Edit entryUuid={entryUuid} passwordsUpdate={passwordsUpdate} />)
+    }
+
+    const onDeleteClick = () => {
+        showModal(
+            <ConfirmDelete
+                entryUuid={entryUuid}
+                siteName={siteName}
+                passwordsUpdate={passwordsUpdate}
+            />
+        )
+    }
+
     return (
         <ul className='passwords-entry'>
             <button
@@ -123,6 +143,7 @@ function Entry({ entry, showModal, passwordsUpdate }: EntryProps) {
             >
                 {favorite ? ICONS.FULL_STAR : ICONS.EMPTY_STAR}
             </button>
+
             <div className='passwords-entry-contents'>
                 <div className='passwords-entry-site'>
                     {siteName} - {siteUrl}
@@ -131,18 +152,19 @@ function Entry({ entry, showModal, passwordsUpdate }: EntryProps) {
                     {username}: {password}
                 </div>
             </div>
+
             <div className='passwords-entry-options'>
                 <button
                     className='icon-button passwords-entry-button'
                     title='Edit'
-                    onClick={() => showModal(<Edit entryUuid={entryUuid} passwordsUpdate={passwordsUpdate} />)}
+                    onClick={onEditClick}
                 >
                     {ICONS.EDIT}
                 </button>
                 <button
                     className='icon-button passwords-entry-button passwords-entry-delete-button'
                     title='Delete'
-                    onClick={() => showModal(<ConfirmDelete entryUuid={entryUuid} passwordsUpdate={passwordsUpdate} />)}
+                    onClick={onDeleteClick}
                 >
                     {ICONS.XMARK}
                 </button>
@@ -170,9 +192,10 @@ type PasswordsModalField = {
 type PasswordsModalProps = {
     title: string,
     fields: PasswordsModalField[],
+    submitLabel: string,
     onSubmit: (uuid: Uuid) => Promise<any>,
 }
-function PasswordsModal({ title, fields, onSubmit }: PasswordsModalProps) {
+function PasswordsModal({ title, fields, submitLabel, onSubmit }: PasswordsModalProps) {
     const uuid = useContext(UuidContext)
 
     const onFieldChange = (setValue: Dispatch<SetStateAction<string>>) => {
@@ -188,21 +211,23 @@ function PasswordsModal({ title, fields, onSubmit }: PasswordsModalProps) {
     return (
         <div className='passwords-modal'>
             <h1>{title}</h1>
-            {
-                fields.map(({ field, value, setValue, hide }) => {
-                    return (
-                        <div key={field}>
-                            <label>{field}</label>
-                            <input
-                                type={hide ? 'password' : 'text'}
-                                value={value}
-                                onChange={onFieldChange(setValue)}
-                            />
-                        </div>
-                    )
-                })
-            }
-            <button className='button' onClick={onSubmitClick}>Submit</button>
+            <div className='modal-fields'>
+                {
+                    fields.map(({ field, value, setValue, hide }) => {
+                        return (
+                            <Fragment key={field}>
+                                <label>{field}</label>
+                                <input
+                                    type={hide ? 'password' : 'text'}
+                                    value={value}
+                                    onChange={onFieldChange(setValue)}
+                                />
+                            </Fragment>
+                        )
+                    })
+                }
+            </div>
+            <button className='button submit-button' onClick={onSubmitClick}>{submitLabel}</button>
         </div>
     )
 }
@@ -249,18 +274,29 @@ function Edit({ entryUuid, passwordsUpdate }: { entryUuid: Uuid, passwordsUpdate
     return <PasswordsModal
         title='Add Password Entry'
         fields={fields}
+        submitLabel='Edit'
         onSubmit={onAddSubmit}
     />
 }
 
-function ConfirmDelete({ entryUuid, passwordsUpdate }: { entryUuid: Uuid, passwordsUpdate: Dispatch<Update> }) {
+type ConfirmDeleteProps = {
+    entryUuid: Uuid,
+    siteName: string,
+    passwordsUpdate: Dispatch<Update>,
+}
+function ConfirmDelete({ entryUuid, siteName, passwordsUpdate }: ConfirmDeleteProps) {
     const onConfirmDeleteSubmit = (uuid: Uuid) => {
         return new Promise(() => {
             console.log(uuid, entryUuid)
         })
     }
 
-    return <PasswordsModal title='Confirm' fields={[]} onSubmit={onConfirmDeleteSubmit} />
+    return <PasswordsModal
+        title={`Delete entry for '${siteName}'?`}
+        fields={[]}
+        submitLabel='Confirm'
+        onSubmit={onConfirmDeleteSubmit}
+    />
 }
 
 function Add({ passwordsUpdate }: { passwordsUpdate: Dispatch<Update> }) {
@@ -305,6 +341,7 @@ function Add({ passwordsUpdate }: { passwordsUpdate: Dispatch<Update> }) {
     return <PasswordsModal
         title='Add Password Entry'
         fields={fields}
+        submitLabel='Add'
         onSubmit={onAddSubmit}
     />
 }
@@ -344,6 +381,7 @@ function Import() {
     return <PasswordsModal
         title='Import from Bitwarden'
         fields={fields}
+        submitLabel='Import'
         onSubmit={onImportSubmit}
     />
 }
@@ -383,6 +421,7 @@ function Export() {
     return <PasswordsModal
         title='Export to Bitwarden'
         fields={fields}
+        submitLabel='Export'
         onSubmit={onExportSubmit}
     />
 }
