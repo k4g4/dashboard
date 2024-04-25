@@ -89,7 +89,7 @@ export const passwordsEntrySchema = z.object({
     entryUuid: uuidSchema,
     favorite: z.boolean(),
     siteName: z.string(),
-    siteUrl: z.string(),
+    siteUrl: z.string().nullable(),
     username: z.string(),
     password: z.string(),
 })
@@ -99,7 +99,7 @@ export const GET_PASSWORDS_ENDPOINT = 'getpasswords'
 
 export const getPasswordsResponseSchema = z.array(passwordsEntrySchema)
 
-export const bitwardenSchema = z.object({
+export const bitwardenCredentialsSchema = z.object({
     uuid: uuidSchema,
     clientId: z.string(),
     clientSecret: z.string(),
@@ -108,3 +108,19 @@ export const bitwardenSchema = z.object({
 
 export const IMPORT_PASSWORDS_ENDPOINT = 'importpasswords'
 export const EXPORT_PASSWORDS_ENDPOINT = 'exportpasswords'
+
+export const bitwardenPasswordItemSchema = z.object({
+    id: uuidSchema,
+    object: z.literal('item'),
+    type: z.literal(1),
+    deletedDate: z.null(),
+    name: z.string(),
+    favorite: z.boolean(),
+    login: z.object({
+        uris: z.array(z.object({
+            uri: z.string().nullable(),
+        })),
+        username: z.string(),
+        password: z.string(),
+    }),
+}).omit({ object: true, type: true, deletedDate: true })

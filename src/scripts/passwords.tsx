@@ -5,7 +5,7 @@ import {
     type ChangeEvent, type Dispatch, type FormEvent, type MouseEvent, type SetStateAction
 } from 'react'
 import {
-    apiErrorSchema, bitwardenSchema, GET_PASSWORDS_ENDPOINT, getPasswordsResponseSchema, IMPORT_PASSWORDS_ENDPOINT, UUID_PARAM, uuidSchema,
+    apiErrorSchema, bitwardenCredentialsSchema, GET_PASSWORDS_ENDPOINT, getPasswordsResponseSchema, IMPORT_PASSWORDS_ENDPOINT, UUID_PARAM, uuidSchema,
     type PasswordsEntry, type Uuid
 } from '../api_schema'
 import useAsyncEffect from 'use-async-effect'
@@ -195,7 +195,7 @@ function Entry({ entry, showModal, passwordsUpdate, updateCopied }: EntryProps) 
 
             <div className='passwords-entry-contents'>
                 <div className='passwords-entry-site'>
-                    {siteName} - {siteUrl}
+                    {siteName}{siteUrl && `- ${siteUrl}`}
                 </div>
                 <div className='passwords-entry-credentials'>
                     <span
@@ -443,7 +443,7 @@ function Import({ runReload }: { runReload: () => void }) {
     const onImportSubmit = async (uuid: Uuid, updateError: UpdateError, showModal: ShowModal) => {
         showModal()
         try {
-            const body: z.infer<typeof bitwardenSchema> = { uuid, clientId, clientSecret, masterPassword }
+            const body: z.infer<typeof bitwardenCredentialsSchema> = { uuid, clientId, clientSecret, masterPassword }
             const init = { method: 'POST', body: JSON.stringify(body) }
             const response = await fetch(`/api/${IMPORT_PASSWORDS_ENDPOINT}`, init)
             if (response.status !== 200) {
