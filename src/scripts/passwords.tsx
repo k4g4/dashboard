@@ -5,7 +5,8 @@ import {
     type ChangeEvent, type Dispatch, type FormEvent, type MouseEvent, type SetStateAction
 } from 'react'
 import {
-    apiErrorSchema, bitwardenCredentialsSchema, GET_PASSWORDS_ENDPOINT, getPasswordsResponseSchema, IMPORT_PASSWORDS_ENDPOINT, UUID_PARAM, uuidSchema,
+    apiErrorSchema, bitwardenCredentialsSchema, GET_PASSWORDS_ENDPOINT,
+    getPasswordsResponseSchema, IMPORT_PASSWORDS_ENDPOINT, UUID_PARAM, uuidSchema,
     type PasswordsEntry, type Uuid
 } from '../api_schema'
 import useAsyncEffect from 'use-async-effect'
@@ -58,16 +59,19 @@ function Passwords() {
     const updateError = useContext(UpdateErrorContext)
     const showModal = useContext(ShowModalContext)
 
-    const [_passwords, passwordsUpdate] = useReducer(updatePasswords, [])
-    const passwords: PasswordsEntry[] = [
-        { favorite: true, entryUuid: uuidSchema.parse('d290a748-ddfb-419d-8385-7bbe762aa01a'), password: '123', siteName: 'quick', siteUrl: 'www.foo.com', username: 'lazy' },
-        { favorite: false, entryUuid: uuidSchema.parse('f0eea526-31c9-4a21-8f44-77d3779bbb68'), password: '456', siteName: 'brown', siteUrl: 'www.foo.gov', username: 'dogs' },
-        { favorite: true, entryUuid: uuidSchema.parse('013a97fe-4fd9-4101-960c-f70297589b94'), password: '789', siteName: 'foxes', siteUrl: 'www.foo.net', username: 'blah' },
-        { favorite: false, entryUuid: uuidSchema.parse('04c7ebf2-ac3c-48ed-bf1c-00e8498df01f'), password: 'foobar', siteName: 'jumping', siteUrl: 'http://www.blah.com', username: 'blahh' },
-        { favorite: false, entryUuid: uuidSchema.parse('bdde9844-aefd-4dae-b68e-22f7d2daf20a'), password: 'bazqux', siteName: 'over', siteUrl: 'https://foo.com/', username: 'blah' },
-    ]
+    const [passwords, passwordsUpdate] = useReducer(updatePasswords, [])
+    const [search, setSearch] = useState('')
     const [reload, setReload] = useState(false)
     const runReload = () => setReload(reload => !reload)
+
+    const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
+        setSearch(event.target.value)
+    }
+
+    const foundPasswords = passwords.filter(password =>
+        password.siteName.toLowerCase().includes(search.toLowerCase()) ||
+        password.siteUrl?.toLowerCase().includes(search.toLowerCase())
+    )
 
     useAsyncEffect(async isMounted => {
         try {
@@ -121,10 +125,20 @@ function Passwords() {
         <div>
             {
                 passwords.length ?
-                    <li className='passwords-list'>
-                        {entryMapper(passwords.filter(entry => entry.favorite))}
-                        {entryMapper(passwords.filter(entry => !entry.favorite))}
-                    </li>
+                    <>
+                        <div className='passwords-search-container'>
+                            <input
+                                className='passwords-search'
+                                value={search}
+                                placeholder='Search...'
+                                onChange={onSearchChange}
+                            />
+                        </div>
+                        <li className='passwords-list'>
+                            {entryMapper(foundPasswords.filter(entry => entry.favorite))}
+                            {entryMapper(foundPasswords.filter(entry => !entry.favorite))}
+                        </li>
+                    </>
                     :
                     <></>
             }
@@ -195,7 +209,7 @@ function Entry({ entry, showModal, passwordsUpdate, updateCopied }: EntryProps) 
 
             <div className='passwords-entry-contents'>
                 <div className='passwords-entry-site'>
-                    {siteName}{siteUrl && `- ${siteUrl}`}
+                    {siteName}{siteUrl && ` - ${siteUrl}`}
                 </div>
                 <div className='passwords-entry-credentials'>
                     <span

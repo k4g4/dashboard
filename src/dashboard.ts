@@ -10,12 +10,8 @@ import {
     uuidSchema, type Uuid, loginBodySchema, bioBodySchema, bankTransactBodySchema,
     apiErrorSchema, loginResponseSchema, listGalleryResponseSchema, bioResponseSchema,
     bankAccountResponseSchema, bankTransactResponseSchema, setAllowanceBodySchema,
-    GET_PASSWORDS_ENDPOINT,
-    IMPORT_PASSWORDS_ENDPOINT,
-    bitwardenCredentialsSchema,
-    EXPORT_PASSWORDS_ENDPOINT,
-    bitwardenPasswordItemSchema,
-    passwordsEntrySchema
+    GET_PASSWORDS_ENDPOINT, IMPORT_PASSWORDS_ENDPOINT, bitwardenCredentialsSchema,
+    EXPORT_PASSWORDS_ENDPOINT, bitwardenPasswordItemSchema, type PasswordsEntry
 } from './api_schema'
 import { z } from 'zod'
 import moment, { type Moment } from 'moment-timezone'
@@ -388,6 +384,7 @@ export class Dashboard {
                 .env(env)
                 .json()
 
+            // translate bitwarden password entries to database password entries
             const items = z.array(z.unknown()).parse(result)
             const entries =
                 items
@@ -398,7 +395,7 @@ export class Dashboard {
                             const { uris, password, username } = login
                             const siteUrl = uris.at(0)?.uri ?? null
 
-                            const entry: z.infer<typeof passwordsEntrySchema> = {
+                            const entry: PasswordsEntry = {
                                 entryUuid: id,
                                 favorite,
                                 siteName: name,
@@ -411,9 +408,9 @@ export class Dashboard {
                             return null
                         }
                     })
-                    .filter(entry => entry)
-            console.log(entries)
+                    .filter(entry => entry !== null)
 
+            this.db.upsertPasswords(uuid, entries)
         } catch {
             return this.serve400('invalid credentials provided')
         } finally {

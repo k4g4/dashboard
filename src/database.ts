@@ -151,7 +151,7 @@ export class Db {
         if (results) {
             return results.map((result): PasswordsEntry => ({
                 entryUuid: uuidSchema.parse(result.passUuid),
-                siteUrl: result.siteUrl,
+                siteUrl: result.siteUrl.length ? result.siteUrl : null,
                 siteName: result.siteName,
                 username: result.username,
                 password: result.password,
@@ -159,5 +159,24 @@ export class Db {
             }))
         }
         return []
+    }
+
+    upsertPasswords(uuid: Uuid, entries: PasswordsEntry[]) {
+        this.db.transaction(() => {
+            for (let { entryUuid, siteUrl, siteName, username, password, favorite } of entries) {
+                siteUrl = siteUrl?.replaceAll('\'', '\'\'') ?? ''
+                siteName = siteName.replaceAll('\'', '\'\'')
+                username = username.replaceAll('\'', '\'\'')
+                password = password.replaceAll('\'', '\'\'')
+                const query = (
+                    'INSERT INTO password(passUuid, userUuid, siteUrl, siteName, username, password, favorite) ' +
+                    `VALUES ('${entryUuid}', '${uuid}', '${siteUrl}', ` +
+                    `'${siteName}', '${username}', '${password}', ${favorite ? 1 : 0}) ` +
+                    'ON CONFLICT(passUuid) DO UPDATE SET siteUrl=excluded.siteUrl, siteName=excluded.siteName, ' +
+                    'username=excluded.username, password=excluded.password, favorite=excluded.favorite'
+                )
+                this.db.exec(query)
+            }
+        })()
     }
 }
