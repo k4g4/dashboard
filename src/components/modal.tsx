@@ -1,6 +1,6 @@
 import { createContext, useRef, useState, type MouseEvent, type PropsWithChildren, type ReactNode } from "react"
 
-export type ShowModal = (children: ReactNode) => void
+export type ShowModal = (children?: ReactNode) => void
 
 export const ShowModalContext = createContext<ShowModal>(() => { })
 

@@ -98,3 +98,13 @@ export type PasswordsEntry = z.infer<typeof passwordsEntrySchema>
 export const GET_PASSWORDS_ENDPOINT = 'getpasswords'
 
 export const getPasswordsResponseSchema = z.array(passwordsEntrySchema)
+
+export const bitwardenSchema = z.object({
+    uuid: uuidSchema,
+    clientId: z.string(),
+    clientSecret: z.string(),
+    masterPassword: z.string(),
+})
+
+export const IMPORT_PASSWORDS_ENDPOINT = 'importpasswords'
+export const EXPORT_PASSWORDS_ENDPOINT = 'exportpasswords'

@@ -2,16 +2,17 @@ import ReactDOM from 'react-dom/client'
 import { Page, UuidContext } from '../components/page'
 import {
     Fragment, useContext, useReducer, useRef, useState,
-    type ChangeEvent, type Dispatch, type MouseEvent, type SetStateAction
+    type ChangeEvent, type Dispatch, type FormEvent, type MouseEvent, type SetStateAction
 } from 'react'
 import {
-    apiErrorSchema, GET_PASSWORDS_ENDPOINT, getPasswordsResponseSchema, UUID_PARAM, uuidSchema,
+    apiErrorSchema, bitwardenSchema, GET_PASSWORDS_ENDPOINT, getPasswordsResponseSchema, IMPORT_PASSWORDS_ENDPOINT, UUID_PARAM, uuidSchema,
     type PasswordsEntry, type Uuid
 } from '../api_schema'
 import useAsyncEffect from 'use-async-effect'
-import { UpdateErrorContext } from '../components/error'
+import { UpdateErrorContext, type UpdateError } from '../components/error'
 import { ICONS } from '../components/icons'
 import { ShowModalContext, type ShowModal } from '../components/modal'
+import type { z } from 'zod'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <Page pageName='passwords'>
@@ -127,7 +128,11 @@ function Passwords() {
                     :
                     <></>
             }
-            <Options showModal={showModal} passwordsUpdate={passwordsUpdate} runReload={runReload} />
+            <Options
+                showModal={showModal}
+                passwordsUpdate={passwordsUpdate}
+                runReload={runReload}
+            />
             <div className='copied-banner drop-shadow' ref={copiedBanner}>
                 <h3>Copied!</h3>
             </div>
@@ -239,9 +244,24 @@ type OptionsProps = {
 function Options({ showModal, passwordsUpdate, runReload }: OptionsProps) {
     return (
         <div className='passwords-options'>
-            <button className='button' onClick={() => showModal(<Add passwordsUpdate={passwordsUpdate} />)}>Add</button>
-            <button className='button' onClick={() => showModal(<Import runReload={runReload} />)}>Import</button>
-            <button className='button' onClick={() => showModal(<Export />)}>Export</button>
+            <button
+                className='button'
+                onClick={() => showModal(<Add passwordsUpdate={passwordsUpdate} />)}
+            >
+                Add
+            </button>
+            <button
+                className='button'
+                onClick={() => showModal(<Import runReload={runReload} />)}
+            >
+                Import
+            </button>
+            <button
+                className='button'
+                onClick={() => showModal(<Export />)}
+            >
+                Export
+            </button>
         </div>
     )
 }
@@ -256,10 +276,12 @@ type PasswordsModalProps = {
     title: string,
     fields: PasswordsModalField[],
     submitLabel: string,
-    onSubmit: (uuid: Uuid) => Promise<any>,
+    onSubmit: (uuid: Uuid, updateError: UpdateError, showModal: ShowModal) => Promise<any>,
 }
 function PasswordsModal({ title, fields, submitLabel, onSubmit }: PasswordsModalProps) {
     const uuid = useContext(UuidContext)
+    const updateError = useContext(UpdateErrorContext)
+    const showModal = useContext(ShowModalContext)
 
     const onFieldChange = (setValue: Dispatch<SetStateAction<string>>) => {
         return (event: ChangeEvent<HTMLInputElement>) => {
@@ -267,31 +289,35 @@ function PasswordsModal({ title, fields, submitLabel, onSubmit }: PasswordsModal
         }
     }
 
-    const onSubmitClick = async () => {
-        await onSubmit(uuid)
+    const onModalSubmit = async (event: FormEvent) => {
+        event.preventDefault()
+        await onSubmit(uuid, updateError, showModal)
     }
 
     return (
-        <div className='passwords-modal'>
-            <h1>{title}</h1>
-            <div className='modal-fields'>
-                {
-                    fields.map(({ field, value, setValue, hide }) => {
-                        return (
-                            <Fragment key={field}>
-                                <label>{field}</label>
-                                <input
-                                    type={hide ? 'password' : 'text'}
-                                    value={value}
-                                    onChange={onFieldChange(setValue)}
-                                />
-                            </Fragment>
-                        )
-                    })
-                }
+        <form onSubmit={onModalSubmit}>
+            <div className='passwords-modal'>
+                <h1>{title}</h1>
+                <div className='modal-fields'>
+                    {
+                        fields.map(({ field, value, setValue, hide }) => {
+                            return (
+                                <Fragment key={field}>
+                                    <label>{field}</label>
+                                    <input
+                                        className='modal-field'
+                                        type={hide ? 'password' : 'text'}
+                                        value={value}
+                                        onChange={onFieldChange(setValue)}
+                                    />
+                                </Fragment>
+                            )
+                        })
+                    }
+                </div>
+                <input type='submit' className='button submit-button' value={submitLabel} />
             </div>
-            <button className='button submit-button' onClick={onSubmitClick}>{submitLabel}</button>
-        </div>
+        </form>
     )
 }
 
@@ -301,7 +327,7 @@ function Edit({ entryUuid, passwordsUpdate }: { entryUuid: Uuid, passwordsUpdate
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
 
-    const onAddSubmit = (uuid: Uuid) => {
+    const onEditSubmit = (uuid: Uuid, updateError: UpdateError) => {
         return new Promise(() => {
             console.log(uuid, entryUuid, siteName, siteUrl, username, password)
         })
@@ -338,7 +364,7 @@ function Edit({ entryUuid, passwordsUpdate }: { entryUuid: Uuid, passwordsUpdate
         title='Add Password Entry'
         fields={fields}
         submitLabel='Edit'
-        onSubmit={onAddSubmit}
+        onSubmit={onEditSubmit}
     />
 }
 
@@ -368,7 +394,7 @@ function Add({ passwordsUpdate }: { passwordsUpdate: Dispatch<Update> }) {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
 
-    const onAddSubmit = (uuid: Uuid) => {
+    const onConfirmDeleteSubmit = (uuid: Uuid, updateError: UpdateError) => {
         return new Promise(() => {
             console.log(uuid, siteName, siteUrl, username, password)
         })
@@ -405,19 +431,28 @@ function Add({ passwordsUpdate }: { passwordsUpdate: Dispatch<Update> }) {
         title='Add Password Entry'
         fields={fields}
         submitLabel='Add'
-        onSubmit={onAddSubmit}
+        onSubmit={onConfirmDeleteSubmit}
     />
 }
 
 function Import({ runReload }: { runReload: () => void }) {
     const [clientId, setClientId] = useState('')
     const [clientSecret, setClientSecret] = useState('')
-    const [password, setPassword] = useState('')
+    const [masterPassword, setMasterPassword] = useState('')
 
-    const onImportSubmit = (uuid: Uuid) => {
-        return new Promise(() => {
-            console.log(uuid, clientId, clientSecret, password)
-        })
+    const onImportSubmit = async (uuid: Uuid, updateError: UpdateError, showModal: ShowModal) => {
+        showModal()
+        try {
+            const body: z.infer<typeof bitwardenSchema> = { uuid, clientId, clientSecret, masterPassword }
+            const init = { method: 'POST', body: JSON.stringify(body) }
+            const response = await fetch(`/api/${IMPORT_PASSWORDS_ENDPOINT}`, init)
+            if (response.status !== 200) {
+                updateError(apiErrorSchema.parse(await response.json()).error)
+            }
+            runReload()
+        } catch {
+            updateError()
+        }
     }
 
     const fields: PasswordsModalField[] = [
@@ -435,8 +470,8 @@ function Import({ runReload }: { runReload: () => void }) {
         },
         {
             field: 'Master Password',
-            value: password,
-            setValue: setPassword,
+            value: masterPassword,
+            setValue: setMasterPassword,
             hide: true,
         },
     ]
@@ -454,7 +489,7 @@ function Export() {
     const [clientSecret, setClientSecret] = useState('')
     const [password, setPassword] = useState('')
 
-    const onExportSubmit = (uuid: Uuid) => {
+    const onExportSubmit = (uuid: Uuid, updateError: UpdateError) => {
         return new Promise(() => {
             console.log(uuid, clientId, clientSecret, password)
         })

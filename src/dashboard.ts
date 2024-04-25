@@ -11,7 +11,9 @@ import {
     apiErrorSchema, loginResponseSchema, listGalleryResponseSchema, bioResponseSchema,
     bankAccountResponseSchema, bankTransactResponseSchema, setAllowanceBodySchema,
     GET_PASSWORDS_ENDPOINT,
-    getPasswordsResponseSchema
+    IMPORT_PASSWORDS_ENDPOINT,
+    bitwardenSchema,
+    EXPORT_PASSWORDS_ENDPOINT
 } from './api_schema'
 import { z } from 'zod'
 import moment, { type Moment } from 'moment-timezone'
@@ -31,6 +33,7 @@ const PAGE_SCRIPTS = `${SRC_DIR}/scripts`
 const ASSETS_DIR = 'assets'
 const DATA_DIR = `${PERSIST_DIR}/data`
 const GALLERY = 'gallery'
+const BITWARDEN_CONFIG = 'bwconfig'
 
 export class Dashboard {
     scripts: Map<string, number>
@@ -169,6 +172,14 @@ export class Dashboard {
             case SET_ALLOWANCE_ENDPOINT: {
                 const setAllowanceBody = setAllowanceBodySchema.parse(await req.json())
                 return await this.setAllowance(setAllowanceBody)
+            }
+            case IMPORT_PASSWORDS_ENDPOINT: {
+                const importBody = bitwardenSchema.parse(await req.json())
+                return await this.importPasswords(importBody)
+            }
+            case EXPORT_PASSWORDS_ENDPOINT: {
+                const exportBody = bitwardenSchema.parse(await req.json())
+                return await this.exportPasswords(exportBody)
             }
         }
         return this.serve404()
@@ -361,6 +372,32 @@ export class Dashboard {
     async getPasswords(uuid: Uuid) {
         const entries = this.db.getPasswords(uuid)
         return Response.json(entries)
+    }
+
+    async importPasswords({ uuid, clientId, clientSecret, masterPassword }: z.infer<typeof bitwardenSchema>) {
+        const bitwardenConfigDir = `${DATA_DIR}/${uuid}/${BITWARDEN_CONFIG}`
+        const env = { 'BITWARDENCLI_APPDATA_DIR': bitwardenConfigDir }
+        try {
+            await $`bw login --apikey`
+                .env({ ...env, 'BW_CLIENTID': clientId, 'BW_CLIENTSECRET': clientSecret })
+                .quiet()
+            const s = await $`bw list items < ${masterPassword}`
+                .env(env)
+                .json()
+            console.log(s)
+        } catch {
+            return this.serve400('Invalid credentials provided')
+        } finally {
+            await $`bw logout`
+                .env(env)
+                .nothrow()
+                .quiet()
+        }
+        return new Response()
+    }
+
+    async exportPasswords({ clientId, clientSecret, masterPassword }: z.infer<typeof bitwardenSchema>) {
+        return new Response()
     }
 
     serve() {
