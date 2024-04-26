@@ -24,14 +24,14 @@ const DEVELOPMENT = Bun.env.DEVELOPMENT === 'true'
 const TIMEZONE = Bun.env.TIMEZONE ?? 'UTC'
 
 const TEMPLATE = include('pages/template.htm')
-const NAME_FIELD = '{NAME}'
-const DEV_FIELD = '{DEVELOPMENT}'
-const SRC_DIR = 'src'
-const PAGE_SCRIPTS = `${SRC_DIR}/scripts`
-const ASSETS_DIR = 'assets'
-const DATA_DIR = `${PERSIST_DIR}/data`
-const GALLERY = 'gallery'
-const BITWARDEN_CONFIG = 'bwconfig'
+const NAME_FIELD = '{NAME}' as const
+const DEV_FIELD = '{DEVELOPMENT}' as const
+const SRC_DIR = 'src' as const
+const PAGE_SCRIPTS = `${SRC_DIR}/scripts` as const
+const ASSETS_DIR = 'assets' as const
+const DATA_DIR = `${PERSIST_DIR}/data` as const
+const GALLERY = 'gallery' as const
+const BITWARDEN_CONFIG = 'bwconfig' as const
 
 export class Dashboard {
     scripts: Map<string, number>
@@ -267,7 +267,7 @@ export class Dashboard {
     }
 
     async listGallery(uuid: Uuid) {
-        const dir = `${DATA_DIR}/${uuid}/${GALLERY}`
+        const dir = `${DATA_DIR}/${uuid}/${GALLERY}` as const
         await mkdir(dir, { recursive: true })
 
         const files: { mtimeMs: number, path: string }[] = []
@@ -284,7 +284,7 @@ export class Dashboard {
 
     async uploadGallery(formData: FormData) {
         const uuid = uuidSchema.parse(formData.get('uuid'))
-        const dir = `${DATA_DIR}/${uuid}/${GALLERY}`
+        const dir = `${DATA_DIR}/${uuid}/${GALLERY}` as const
 
         let files: File[] = []
         formData.forEach(file => {
@@ -373,52 +373,57 @@ export class Dashboard {
     }
 
     async importPasswords({ uuid, clientId, clientSecret, masterPassword }: z.infer<typeof bitwardenCredentialsSchema>) {
-        const bitwardenConfigDir = `${DATA_DIR}/${uuid}/${BITWARDEN_CONFIG}`
+        const bitwardenConfigDir = `${DATA_DIR}/${uuid}/${BITWARDEN_CONFIG}` as const
         const env = { 'BITWARDENCLI_APPDATA_DIR': bitwardenConfigDir }
+        await mkdir(bitwardenConfigDir, { recursive: true })
 
+        let result: unknown
         try {
-            await $`bw login --apikey`
+            const hello = await $`echo hello world`.text()
+            console.log(hello)
+            await $`bun run bw login --apikey`
                 .env({ ...env, 'BW_CLIENTID': clientId, 'BW_CLIENTSECRET': clientSecret })
-                .quiet()
-            const result = await $`echo ${masterPassword} | bw list items`
+            console.log(3)
+            result = await $`echo ${masterPassword} | bun run bw list items`
                 .env(env)
-                .json()
-
-            // translate bitwarden password entries to database password entries
-            const items = z.array(z.unknown()).parse(result)
-            const entries =
-                items
-                    .map(item => {
-                        const result = bitwardenPasswordItemSchema.safeParse(item)
-                        if (result.success) {
-                            const { id, favorite, name, login } = result.data
-                            const { uris, password, username } = login
-                            const siteUrl = uris.at(0)?.uri ?? null
-
-                            const entry: PasswordsEntry = {
-                                entryUuid: id,
-                                favorite,
-                                siteName: name,
-                                username,
-                                password,
-                                siteUrl,
-                            }
-                            return entry
-                        } else {
-                            return null
-                        }
-                    })
-                    .filter(entry => entry !== null)
-
-            this.db.upsertPasswords(uuid, entries)
+                .text()
+            console.log(result)
         } catch {
             return this.serve400('invalid credentials provided')
         } finally {
-            await $`bw logout`
+            await $`bun run bw logout`
                 .env(env)
                 .nothrow()
-                .quiet()
         }
+        console.log('out')
+
+        // translate bitwarden password entries to database password entries
+        const items = z.array(z.unknown()).parse(result)
+        const entries =
+            items
+                .map(item => {
+                    const result = bitwardenPasswordItemSchema.safeParse(item)
+                    if (result.success) {
+                        const { id, favorite, name, login } = result.data
+                        const { uris, password, username } = login
+                        const siteUrl = uris.at(0)?.uri ?? null
+
+                        const entry: PasswordsEntry = {
+                            entryUuid: id,
+                            favorite,
+                            siteName: name,
+                            username,
+                            password,
+                            siteUrl,
+                        }
+                        return entry
+                    } else {
+                        return null
+                    }
+                })
+                .filter(entry => entry !== null)
+
+        this.db.upsertPasswords(uuid, entries)
 
         return new Response()
     }

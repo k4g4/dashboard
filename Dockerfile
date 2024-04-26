@@ -1,13 +1,15 @@
 FROM imbios/bun-node as base
 WORKDIR /home/bun/app
 
-# unfortunately, this dependency does not work with bun!
-# hence the need for a bun + node docker image...
-RUN npm install -g @bitwarden/cli
-
 # install dependencies into temp directory
 # this will cache them and speed up future builds
 FROM base AS install
+
+# unfortunately, this dependency does not work with bun!
+# hence the need for a bun + node docker image...
+RUN mkdir -p /temp/bw
+RUN cd /temp/bw && npm install @bitwarden/cli
+
 RUN mkdir -p /temp/dev
 COPY package.json bun.lockb /temp/dev/
 RUN cd /temp/dev && bun install --frozen-lockfile
@@ -32,6 +34,8 @@ COPY --from=prerelease /home/bun/app/dashboard .
 COPY --from=prerelease /home/bun/app/pages pages
 COPY --from=prerelease /home/bun/app/assets assets
 COPY --from=prerelease /home/bun/app/build build
+
+COPY --from=install /temp/bw/node_modules node_modules
 
 # create persistent storage directory (use -v with docker run)
 RUN mkdir persist
