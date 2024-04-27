@@ -1,15 +1,11 @@
-FROM imbios/bun-node as base
-WORKDIR /home/bun/app
+# use the official Bun image
+# see all versions at https://hub.docker.com/r/oven/bun/tags
+FROM oven/bun:1 as base
+WORKDIR /usr/src/app
 
 # install dependencies into temp directory
 # this will cache them and speed up future builds
 FROM base AS install
-
-# unfortunately, this dependency does not work with bun!
-# hence the need for a bun + node docker image...
-RUN mkdir -p /temp/bw
-RUN cd /temp/bw && npm install @bitwarden/cli
-
 RUN mkdir -p /temp/dev
 COPY package.json bun.lockb /temp/dev/
 RUN cd /temp/dev && bun install --frozen-lockfile
@@ -30,12 +26,11 @@ RUN bun buildserver
 
 # copy production dependencies and source code into final image
 FROM base AS release
-COPY --from=prerelease /home/bun/app/dashboard .
-COPY --from=prerelease /home/bun/app/pages pages
-COPY --from=prerelease /home/bun/app/assets assets
-COPY --from=prerelease /home/bun/app/build build
-
-COPY --from=install /temp/bw/node_modules node_modules
+RUN chown bun .
+COPY --from=prerelease /usr/src/app/dashboard .
+COPY --from=prerelease /usr/src/app/pages pages
+COPY --from=prerelease /usr/src/app/assets assets
+COPY --from=prerelease /usr/src/app/build build
 
 # create persistent storage directory (use -v with docker run)
 RUN mkdir persist

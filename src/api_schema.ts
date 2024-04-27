@@ -1,75 +1,51 @@
 import { z } from 'zod'
+import type { UpdateError } from './components/error'
 
-export const apiErrorSchema = z.object({
+export const apiError = z.object({
     error: z.string(),
 })
 
-export const uuidSchema = z.string().uuid().brand<"Uuid">()
-export type Uuid = z.infer<typeof uuidSchema>
-
-export const GOOGLE_ID_PARAM = 'googleid'
-export const UUID_PARAM = 'uuid'
-
-export const LOGGED_IN_ENDPOINT = 'loggedin'
-
-export const GOOGLE_LOGIN_ENDPOINT = 'googlelogin'
-
-export const loginResponseSchema = z.object({
-    uuid: uuidSchema,
-})
-
-export const LOGOUT_ENDPOINT = 'logout'
-
-export const LOGIN_ENDPOINT = 'login'
+export const uuid = z.string().uuid().brand<"Uuid">()
+export type Uuid = z.infer<typeof uuid>
 
 export const MAX_USERNAME_LEN = 20
 export const MAX_PASSWORD_LEN = 20
 export const MIN_LEN = 5
 
-export const loginBodySchema = z.object({
+export const loginBody = z.object({
     username: z.string().max(MAX_USERNAME_LEN).min(MIN_LEN),
     password: z.string().max(MAX_PASSWORD_LEN).min(MIN_LEN),
     signingUp: z.boolean(),
 })
 
-export const LIST_GALLERY_ENDPOINT = 'listgallery'
+export const loginResponse = z.object({
+    uuid,
+})
 
-export const listGalleryResponseSchema = z.array(z.string())
+export const listGalleryResponse = z.array(z.string())
 
-export const UPLOAD_GALLERY_ENDPOINT = 'uploadgallery'
-
-export const DELETE_GALLERY_ENDPOINT = 'deletegallery'
-
-export const IMAGE_NAME_PARAM = 'name'
-
-export const BIO_ENDPOINT = 'bio'
-
-export const bioResponseSchema = z.object({
+export const bioResponse = z.object({
     bio: z.string().nullable(),
 })
 
-export const bioBodySchema = z.object({
-    uuid: uuidSchema,
+export const bioBody = z.object({
+    uuid,
     bio: z.string(),
 })
 
-export const BANK_TRANSACT_ENDPOINT = 'banktransact'
-
-export const bankTransactBodySchema = z.object({
-    uuid: uuidSchema,
+export const bankTransactBody = z.object({
+    uuid,
     amount: z.number().finite().gt(-9999).lt(9999),
     adding: z.boolean().optional(),
 })
 
-export const bankTransactResponseSchema = z.object({
+export const bankTransactResponse = z.object({
     newBalance: z.number(),
 })
 
-export const BANK_ACCOUNT_ENDPOINT = 'bankaccount'
-export const BANK_HISTORY_PAGE_PARAM = 'page'
 export const BANK_HISTORY_LENGTH = 30
 
-export const bankAccountResponseSchema = z.object({
+export const bankAccountResponse = z.object({
     balance: z.number().finite(),
     allowance: z.number().finite(),
     hist: z.array(z.object({
@@ -78,39 +54,25 @@ export const bankAccountResponseSchema = z.object({
     })).max(BANK_HISTORY_LENGTH),
 })
 
-export const SET_ALLOWANCE_ENDPOINT = 'setallowance'
-
-export const setAllowanceBodySchema = z.object({
-    uuid: uuidSchema,
+export const setAllowanceBody = z.object({
+    uuid,
     allowance: z.number().finite().nonnegative(),
 })
 
-export const passwordsEntrySchema = z.object({
-    entryUuid: uuidSchema,
+export const passwordsEntry = z.object({
+    entryUuid: uuid,
     favorite: z.boolean(),
     siteName: z.string(),
     siteUrl: z.string().nullable(),
     username: z.string(),
     password: z.string(),
 })
-export type PasswordsEntry = z.infer<typeof passwordsEntrySchema>
+export type PasswordsEntry = z.infer<typeof passwordsEntry>
 
-export const GET_PASSWORDS_ENDPOINT = 'getpasswords'
+export const getPasswordsResponse = z.array(passwordsEntry)
 
-export const getPasswordsResponseSchema = z.array(passwordsEntrySchema)
-
-export const bitwardenCredentialsSchema = z.object({
-    uuid: uuidSchema,
-    clientId: z.string(),
-    clientSecret: z.string(),
-    masterPassword: z.string(),
-})
-
-export const IMPORT_PASSWORDS_ENDPOINT = 'importpasswords'
-export const EXPORT_PASSWORDS_ENDPOINT = 'exportpasswords'
-
-export const bitwardenPasswordItemSchema = z.object({
-    id: uuidSchema,
+export const bitwardenPasswordItem = z.object({
+    id: uuid,
     object: z.literal('item'),
     type: z.literal(1),
     deletedDate: z.null(),
@@ -124,3 +86,97 @@ export const bitwardenPasswordItemSchema = z.object({
         password: z.string(),
     }),
 }).omit({ object: true, type: true, deletedDate: true })
+
+export const importBitwardenBody = z.object({
+    uuid,
+    items: z.array(z.unknown()),
+})
+
+const endpoints = [
+    'loggedin',
+    'googlelogin',
+    'logout',
+    'login',
+    'gallery',
+    'deletegallery',
+    'bio',
+    'banktransact',
+    'bankaccount',
+    'setallowance',
+    'passwords',
+    'importpasswords',
+    'exportpasswords',
+] as const
+
+export type Endpoint = typeof endpoints[number]
+
+export function isEndpoint(endpoint: string): endpoint is Endpoint {
+    return endpoint in endpoints
+}
+
+const params = {
+    googleid: z.string(),
+    uuid,
+    name: z.string(),
+    page: z.number(),
+}
+
+export function getParam(
+    searchParams: URLSearchParams
+): <Param extends keyof typeof params>(param: Param) => z.infer<typeof params[Param]> {
+    return param => params[param].parse(searchParams.get(param))
+}
+
+type Params = { [param in keyof typeof params]: z.infer<typeof params[param]> }
+
+export async function apiFetch<Schema extends z.ZodTypeAny>(
+    endpoint: Endpoint,
+    { }: {
+        params?: Partial<Params>,
+        body?: unknown,
+        schema: Schema,
+        updateError?: UpdateError,
+    },
+): Promise<z.TypeOf<Schema> | null>
+export async function apiFetch(
+    endpoint: Endpoint,
+    { }: {
+        params?: Partial<Params>,
+        body?: unknown,
+        schema?: undefined,
+        updateError?: UpdateError,
+    },
+): Promise<boolean>
+export async function apiFetch<Schema extends z.ZodTypeAny>(
+    endpoint: Endpoint,
+    { params, body, schema, updateError }: {
+        updateError?: UpdateError,
+        params?: Partial<Params>,
+        body?: unknown,
+        schema?: Schema,
+    },
+) {
+    const searchParams = new URLSearchParams()
+    for (const [key, value] of Object.entries(params ?? {})) {
+        searchParams.append(key, value.toString())
+    }
+    try {
+        const response = await fetch(`/api/${endpoint}/${searchParams}`, body ?? { method: 'POST', body: JSON.stringify(body) })
+        if (response.status === 200) {
+            if (schema) {
+                return schema.parse(await response.json())
+            }
+            return true
+        } else if (response.status === 404) {
+            updateError?.('file not found')
+        } else {
+            updateError?.(apiError.parse(await response.json()).error)
+        }
+    } catch {
+        updateError?.()
+    }
+    if (schema) {
+        return null
+    }
+    return false
+}

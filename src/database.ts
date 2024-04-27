@@ -1,6 +1,6 @@
 import { closeSync, openSync, mkdirSync } from 'node:fs'
 import { Database } from 'bun:sqlite'
-import { uuidSchema, type PasswordsEntry, type Uuid } from './api_schema'
+import * as schema from './api_schema'
 import { v4 as generateUuid } from 'uuid'
 import migrations from '../migrations.json'
 import type { z } from 'zod'
@@ -33,7 +33,7 @@ export class Db {
         const query = `SELECT userUuid FROM googleAccount WHERE googleId = '${googleId}'`
         const result = this.db.query(query).get() as { userUuid: string } | null
         if (result) {
-            const parsed = uuidSchema.safeParse(result.userUuid)
+            const parsed = schema.uuid.safeParse(result.userUuid)
             if (parsed.success) {
                 this.db.exec(`UPDATE user SET loggedIn = TRUE WHERE userUuid = '${parsed.data}'`)
                 return parsed.data
@@ -43,7 +43,7 @@ export class Db {
     }
 
     newGoogleAccount(googleId: string) {
-        const uuid = uuidSchema.parse(generateUuid())
+        const uuid = schema.uuid.parse(generateUuid())
         this.db.transaction(() => {
             this.db.exec(`INSERT INTO googleAccount(googleId, userUuid) VALUES ('${googleId}', '${uuid}')`)
             this.db.exec(`INSERT INTO user(userUuid, loggedIn, allowance) VALUES ('${uuid}', TRUE, 0)`)
@@ -55,7 +55,7 @@ export class Db {
         const query = `SELECT passwordHash, userUuid FROM account WHERE username = '${username}'`
         const result = this.db.query(query).get() as { passwordHash: string, userUuid: string } | null
         if (result) {
-            const parsed = uuidSchema.safeParse(result.userUuid)
+            const parsed = schema.uuid.safeParse(result.userUuid)
             if (parsed.success) {
                 this.db.exec(`UPDATE user SET loggedIn = TRUE WHERE userUuid = '${result.userUuid}'`)
                 return { passwordHash: result.passwordHash, uuid: parsed.data }
@@ -65,7 +65,7 @@ export class Db {
     }
 
     newAccount(username: string, passwordHash: string) {
-        const uuid = uuidSchema.parse(generateUuid())
+        const uuid = schema.uuid.parse(generateUuid())
         this.db.transaction(() => {
             const query = `INSERT INTO account(username, passwordHash, userUuid) VALUES `
                 + `('${username}', '${passwordHash}', '${uuid}')`
@@ -75,7 +75,7 @@ export class Db {
         return uuid
     }
 
-    getUserLoggedIn(uuid: Uuid) {
+    getUserLoggedIn(uuid: schema.Uuid) {
         const query = `SELECT loggedIn FROM user WHERE userUuid = '${uuid}'`
         const result = this.db.query(query).get() as { loggedIn: boolean } | null
         if (result) {
@@ -84,17 +84,17 @@ export class Db {
         return false
     }
 
-    setUserLogout(uuid: Uuid) {
+    setUserLogout(uuid: schema.Uuid) {
         this.db.exec(`UPDATE user SET loggedIn = FALSE WHERE userUuid = '${uuid}'`)
     }
 
-    getUserBio(uuid: Uuid) {
+    getUserBio(uuid: schema.Uuid) {
         const query = `SELECT bio FROM userBio WHERE userUuid = '${uuid}'`
         const result = this.db.query(query).get() as { bio: string } | null
         return result?.bio
     }
 
-    setUserBio(uuid: Uuid, body: string) {
+    setUserBio(uuid: schema.Uuid, body: string) {
         const query = (
             `INSERT INTO userBio(userUuid, bio) VALUES ('${uuid}', '${body}') ` +
             'ON CONFLICT(userUuid) DO UPDATE SET bio=excluded.bio'
@@ -102,7 +102,7 @@ export class Db {
         this.db.exec(query)
     }
 
-    getBankHistory(uuid: Uuid, limit: number, offset: number) {
+    getBankHistory(uuid: schema.Uuid, limit: number, offset: number) {
         const query = (
             'SELECT balance, isoTimestamp FROM bank ' +
             `WHERE userUuid = '${uuid}' ORDER BY isoTimestamp DESC LIMIT ${limit} OFFSET ${offset}`
@@ -110,12 +110,12 @@ export class Db {
         return this.db.query(query).all() as { balance: number, isoTimestamp: string }[] | null
     }
 
-    getBankBalance(uuid: Uuid) {
+    getBankBalance(uuid: schema.Uuid) {
         const query = `SELECT balance, isoTimestamp FROM bank WHERE userUuid = '${uuid}' ORDER BY isoTimestamp DESC`
         return this.db.query(query).get() as { balance: number, isoTimestamp: string } | null
     }
 
-    newBalance(uuid: Uuid, isoTimestamp: string, balance: number) {
+    newBalance(uuid: schema.Uuid, isoTimestamp: string, balance: number) {
         const query = (
             'INSERT INTO bank(userUuid, isoTimestamp, balance) ' +
             `VALUES ('${uuid}', '${isoTimestamp}', ${balance})`
@@ -123,18 +123,18 @@ export class Db {
         this.db.exec(query)
     }
 
-    getBankAllowance(uuid: Uuid) {
+    getBankAllowance(uuid: schema.Uuid) {
         const query = `SELECT allowance FROM user WHERE userUuid = '${uuid}'`
         const result = this.db.query(query).get() as { allowance: number } | null
         return result?.allowance
     }
 
-    setAllowance(uuid: Uuid, allowance: number) {
+    setAllowance(uuid: schema.Uuid, allowance: number) {
         const query = `UPDATE user SET allowance = ${allowance} WHERE userUuid = '${uuid}'`
         this.db.exec(query)
     }
 
-    getPasswords(uuid: Uuid) {
+    getPasswords(uuid: schema.Uuid) {
         const query = (
             'SELECT passUuid, siteUrl, siteName, username, password, favorite FROM password ' +
             `WHERE userUuid = '${uuid}' ORDER BY siteName`
@@ -149,8 +149,8 @@ export class Db {
         }
         const results = this.db.query(query).all() as GetPasswordsResult[] | null
         if (results) {
-            return results.map((result): PasswordsEntry => ({
-                entryUuid: uuidSchema.parse(result.passUuid),
+            return results.map((result): schema.PasswordsEntry => ({
+                entryUuid: schema.uuid.parse(result.passUuid),
                 siteUrl: result.siteUrl.length ? result.siteUrl : null,
                 siteName: result.siteName,
                 username: result.username,
@@ -161,7 +161,7 @@ export class Db {
         return []
     }
 
-    upsertPasswords(uuid: Uuid, entries: PasswordsEntry[]) {
+    upsertPasswords(uuid: schema.Uuid, entries: schema.PasswordsEntry[]) {
         this.db.transaction(() => {
             for (let { entryUuid, siteUrl, siteName, username, password, favorite } of entries) {
                 siteUrl = siteUrl?.replaceAll('\'', '\'\'') ?? ''

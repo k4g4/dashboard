@@ -5,17 +5,7 @@ import {
     useContext, useState, type ChangeEvent, type CSSProperties, type Dispatch,
     type MouseEvent, type SetStateAction
 } from 'react'
-import {
-    apiErrorSchema,
-    BANK_ACCOUNT_ENDPOINT, BANK_HISTORY_LENGTH, BANK_HISTORY_PAGE_PARAM, BANK_TRANSACT_ENDPOINT,
-    bankAccountResponseSchema,
-    bankTransactBodySchema,
-    bankTransactResponseSchema,
-    SET_ALLOWANCE_ENDPOINT,
-    setAllowanceBodySchema,
-    UUID_PARAM,
-    type Uuid
-} from '../api_schema'
+import * as schema from '../api_schema'
 import { UpdateErrorContext, type UpdateError } from '../components/error'
 import useAsyncEffect from 'use-async-effect'
 import moment, { type Moment } from 'moment'
@@ -46,50 +36,34 @@ function Bank() {
 
     useAsyncEffect(async isMounted => {
         setPage(0)
-        const searchParams = new URLSearchParams({ [UUID_PARAM]: uuid, [BANK_HISTORY_PAGE_PARAM]: '0' })
-        try {
-            const response = await fetch(`/api/${BANK_ACCOUNT_ENDPOINT}?${searchParams}`)
-            const body = await response.json()
-            if (isMounted()) {
-                if (response.status === 200) {
-                    const { balance, allowance, hist } = bankAccountResponseSchema.parse(body)
-                    setAccount({
-                        balance,
-                        allowance,
-                        hist: hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) })),
-                    })
-                    setMaybeMore(hist.length === BANK_HISTORY_LENGTH)
-                } else {
-                    updateError(apiErrorSchema.parse(body).error)
-                }
-            }
-        } catch {
-            updateError()
+        const options = { params: { uuid, page: 0 }, schema: schema.bankAccountResponse, updateError }
+        const response = await schema.apiFetch('bankaccount', options)
+        if (response && isMounted()) {
+            const { balance, allowance, hist } = response
+            setAccount({
+                balance,
+                allowance,
+                hist: hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) })),
+            })
+            setMaybeMore(hist.length === schema.BANK_HISTORY_LENGTH)
         }
     }, [reload])
 
     const onLoadMore = async () => {
-        const searchParams = new URLSearchParams({ [UUID_PARAM]: uuid, [BANK_HISTORY_PAGE_PARAM]: page.toString() })
-        try {
-            const response = await fetch(`/api/${BANK_ACCOUNT_ENDPOINT}?${searchParams}`)
-            const body = await response.json()
-            if (response.status === 200) {
-                const { hist } = bankAccountResponseSchema.parse(body)
-                const newHist = hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) }))
-                setAccount(account => account && ({
-                    ...account,
-                    hist: account.hist.concat(newHist),
-                }))
-                if (hist.length < BANK_HISTORY_LENGTH) {
-                    setMaybeMore(false)
-                } else {
-                    setPage(page + 1)
-                }
+        const options = { params: { uuid, page }, schema: schema.bankAccountResponse, updateError }
+        const response = await schema.apiFetch('bankaccount', options)
+        if (response) {
+            const newHist = response.hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) }))
+            setAccount(account => account && ({
+                ...account,
+                hist: account.hist.concat(newHist),
+            }))
+            if (response.hist.length < schema.BANK_HISTORY_LENGTH) {
+                setMaybeMore(false)
             } else {
-                updateError(apiErrorSchema.parse(body).error)
+                setPage(page + 1)
             }
-        } catch {
-            updateError()
+
         }
     }
 
@@ -118,7 +92,7 @@ function Bank() {
 type InputType = 'unit' | 'tenth' | 'hundredth' | 'disabled'
 
 type InputProps = {
-    uuid: Uuid,
+    uuid: schema.Uuid,
     updateError: UpdateError,
     account: BankAccount | undefined,
     runReload: () => void,
@@ -188,25 +162,11 @@ function Input({ uuid, updateError, account, runReload }: InputProps) {
                 setInputType('unit')
                 setAdding(false)
 
-                const body: z.infer<typeof bankTransactBodySchema> = { uuid, amount }
-                if (adding) {
-                    body.adding = true
-                }
-                const init = {
-                    method: 'POST',
-                    body: JSON.stringify(body),
-                }
-                try {
-                    const response = await fetch(`/api/${BANK_TRANSACT_ENDPOINT}`, init)
-                    const body = await response.json()
-                    if (response.status === 200) {
-                        const { newBalance } = bankTransactResponseSchema.parse(body)
-                        runReload()
-                    } else {
-                        updateError(apiErrorSchema.parse(body).error)
-                    }
-                } catch {
-                    updateError()
+                const body: z.infer<typeof schema.bankTransactBody> = { uuid, amount, adding }
+                const options = { body, schema: schema.bankAccountResponse, updateError }
+                const response = await schema.apiFetch('banktransact', options)
+                if (response) {
+                    runReload()
                 }
             }
         }
@@ -286,7 +246,7 @@ function History({ account, loadMore }: { account: BankAccount | undefined, load
 }
 
 type SettingsProps = {
-    uuid: Uuid,
+    uuid: schema.Uuid,
     updateError: UpdateError,
     showModal: ShowModal,
     runReload: () => void,
@@ -304,16 +264,8 @@ function Settings({ uuid, updateError, showModal, runReload, allowance }: Settin
     }
 
     const onUpdate = async () => {
-        try {
-            const body: z.infer<typeof setAllowanceBodySchema> = { uuid, allowance: newAllowance }
-            const init: FetchRequestInit = { method: 'POST', body: JSON.stringify(body) }
-            const response = await fetch(`/api/${SET_ALLOWANCE_ENDPOINT}`, init)
-            if (response.status !== 200) {
-                updateError(apiErrorSchema.parse(await response.json()).error)
-            }
-        } catch {
-            updateError()
-        }
+        const body: z.infer<typeof schema.setAllowanceBody> = { uuid, allowance: newAllowance }
+        await schema.apiFetch('setallowance', { body, updateError })
         runReload()
         showModal(null)
     }

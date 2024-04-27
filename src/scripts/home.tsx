@@ -6,11 +6,7 @@ import {
     type FormEvent, type MouseEvent, type SetStateAction
 } from 'react'
 import { useAsyncEffect } from 'use-async-effect'
-import {
-    apiErrorSchema,
-    BIO_ENDPOINT, bioBodySchema, bioResponseSchema, DELETE_GALLERY_ENDPOINT, IMAGE_NAME_PARAM,
-    LIST_GALLERY_ENDPOINT, listGalleryResponseSchema, UPLOAD_GALLERY_ENDPOINT, UUID_PARAM,
-} from '../api_schema'
+import * as schema from '../api_schema'
 import { ICONS } from '../components/icons'
 import { UpdateErrorContext } from '../components/error'
 import type { z } from 'zod'
@@ -33,20 +29,9 @@ function Bio() {
     const [reload, setReload] = useState(false)
 
     useAsyncEffect(async isMounted => {
-        const response = await fetch(`/api/${BIO_ENDPOINT}?${UUID_PARAM}=${uuid}`)
-        if (response.status === 404) {
-            updateError()
-            return
-        }
-        const body = await response.json()
-        if (isMounted()) {
-            const bioResponse = bioResponseSchema.safeParse(body)
-            if (bioResponse.success) {
-                setBio(bioResponse.data.bio ?? undefined)
-            } else {
-                const apiError = apiErrorSchema.safeParse(body)
-                updateError(apiError.success ? apiError.data.error : undefined)
-            }
+        const response = await schema.apiFetch('bio', { params: { uuid }, schema: schema.bioResponse, updateError })
+        if (response && isMounted()) {
+            setBio(response.bio ?? undefined)
         }
     }, [reload])
 
@@ -60,19 +45,10 @@ function Bio() {
         event.preventDefault()
 
         const sanitizedBio = newBio ? newBio.replaceAll('\'', '\'\'') : bio ?? ''
-        const body: z.infer<typeof bioBodySchema> = { uuid, bio: sanitizedBio }
-        const response = await fetch(`/api/${BIO_ENDPOINT}`, { method: 'POST', body: JSON.stringify(body) })
-        if (response.status === 200) {
+        const body: z.infer<typeof schema.bioBody> = { uuid, bio: sanitizedBio }
+        if (await schema.apiFetch('bio', { body, updateError })) {
             setEditing(false)
             setReload(reload => !reload)
-        } else {
-            try {
-                const body = await response.json()
-                const apiError = apiErrorSchema.safeParse(body)
-                updateError(apiError.success ? apiError.data.error : undefined)
-            } catch {
-                updateError()
-            }
         }
     }
 
@@ -137,16 +113,10 @@ function Gallery() {
     }
 
     useAsyncEffect(async isMounted => {
-        const response = await fetch(`/api/${LIST_GALLERY_ENDPOINT}?${UUID_PARAM}=${uuid}`)
-        const body = await response.json()
-        if (isMounted()) {
-            const listGalleryResponse = listGalleryResponseSchema.safeParse(body)
-            if (listGalleryResponse.success) {
-                setImages(listGalleryResponse.data)
-            } else {
-                const apiError = apiErrorSchema.safeParse(body)
-                updateError(apiError.success ? apiError.data.error : undefined)
-            }
+        const options = { params: { uuid }, schema: schema.listGalleryResponse, updateError }
+        const response = await schema.apiFetch('gallery', options)
+        if (response && isMounted()) {
+            setImages(response)
         }
     }, [reload])
 
@@ -168,18 +138,9 @@ function Gallery() {
                 updateError('no files provided')
             }
 
-            const response = await fetch(`/api/${UPLOAD_GALLERY_ENDPOINT}`, { method: 'POST', body })
-            if (response.status === 200) {
+            if (await schema.apiFetch('gallery', { body, updateError })) {
                 setImageIndex(0)
                 setReload(reload => !reload)
-            } else {
-                try {
-                    const body = await response.json()
-                    const apiError = apiErrorSchema.safeParse(body)
-                    updateError(apiError.success ? apiError.data.error : undefined)
-                } catch {
-                    updateError()
-                }
             }
         })
 
@@ -192,19 +153,9 @@ function Gallery() {
             return
         }
         const name = images[imageIndex].slice(images[imageIndex].lastIndexOf('/') + 1)
-        const params = new URLSearchParams({ [UUID_PARAM]: uuid, [IMAGE_NAME_PARAM]: name })
-        const response = await fetch(`/api/${DELETE_GALLERY_ENDPOINT}?${params}`)
-        if (response.status === 200) {
+        if (await schema.apiFetch('deletegallery', { params: { uuid, name }, updateError })) {
             setImageIndex(0)
             setReload(reload => !reload)
-        } else {
-            try {
-                const body = await response.json()
-                const apiError = apiErrorSchema.safeParse(body)
-                updateError(apiError.success ? apiError.data.error : undefined)
-            } catch {
-                updateError()
-            }
         }
     }
 

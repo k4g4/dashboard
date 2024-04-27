@@ -4,11 +4,7 @@ import {
     Fragment, useContext, useReducer, useRef, useState,
     type ChangeEvent, type Dispatch, type FormEvent, type MouseEvent, type SetStateAction
 } from 'react'
-import {
-    apiErrorSchema, bitwardenCredentialsSchema, GET_PASSWORDS_ENDPOINT,
-    getPasswordsResponseSchema, IMPORT_PASSWORDS_ENDPOINT, UUID_PARAM, uuidSchema,
-    type PasswordsEntry, type Uuid
-} from '../api_schema'
+import * as schema from '../api_schema'
 import useAsyncEffect from 'use-async-effect'
 import { UpdateErrorContext, type UpdateError } from '../components/error'
 import { ICONS } from '../components/icons'
@@ -22,13 +18,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 )
 
 type Update =
-    | { type: 'assign', entries: PasswordsEntry[] }
-    | { type: 'add', newEntry: PasswordsEntry }
-    | { type: 'remove', entryUuid: Uuid }
-    | { type: 'edit', editedEntry: PasswordsEntry }
-    | { type: 'togglefav', entryUuid: Uuid }
+    | { type: 'assign', entries: schema.PasswordsEntry[] }
+    | { type: 'add', newEntry: schema.PasswordsEntry }
+    | { type: 'remove', entryUuid: schema.Uuid }
+    | { type: 'edit', editedEntry: schema.PasswordsEntry }
+    | { type: 'togglefav', entryUuid: schema.Uuid }
 
-function updatePasswords(passwords: PasswordsEntry[], update: Update): PasswordsEntry[] {
+function updatePasswords(passwords: schema.PasswordsEntry[], update: Update): schema.PasswordsEntry[] {
     switch (update.type) {
         case 'assign': return update.entries
 
@@ -74,19 +70,10 @@ function Passwords() {
     )
 
     useAsyncEffect(async isMounted => {
-        try {
-            const response = await fetch(`/api/${GET_PASSWORDS_ENDPOINT}?${UUID_PARAM}=${uuid}`)
-            const body = await response.json()
-            if (isMounted()) {
-                if (response.status === 200) {
-                    const entries = getPasswordsResponseSchema.parse(body)
-                    passwordsUpdate({ type: 'assign', entries })
-                } else {
-                    updateError(apiErrorSchema.parse(body).error)
-                }
-            }
-        } catch {
-            updateError()
+        const options = { params: { uuid }, schema: schema.getPasswordsResponse, updateError }
+        const response = await schema.apiFetch('passwords', options)
+        if (response && isMounted()) {
+            passwordsUpdate({ type: 'assign', entries: response })
         }
     }, [reload])
 
@@ -109,7 +96,7 @@ function Passwords() {
         setCopiedTimer(setTimeout(() => setCopiedTimer(undefined), FADE_OUT_TIME))
     }
 
-    const entryMapper = (passwords: PasswordsEntry[]) => {
+    const entryMapper = (passwords: schema.PasswordsEntry[]) => {
         return passwords.map(entry => (
             <Entry
                 key={entry.entryUuid}
@@ -155,7 +142,7 @@ function Passwords() {
 }
 
 type EntryProps = {
-    entry: PasswordsEntry,
+    entry: schema.PasswordsEntry,
     showModal: ShowModal,
     passwordsUpdate: Dispatch<Update>,
     updateCopied: (x: number, y: number) => void,
@@ -290,7 +277,7 @@ type PasswordsModalProps = {
     title: string,
     fields: PasswordsModalField[],
     submitLabel: string,
-    onSubmit: (uuid: Uuid, updateError: UpdateError, showModal: ShowModal) => Promise<any>,
+    onSubmit: (uuid: schema.Uuid, updateError: UpdateError, showModal: ShowModal) => Promise<any>,
 }
 function PasswordsModal({ title, fields, submitLabel, onSubmit }: PasswordsModalProps) {
     const uuid = useContext(UuidContext)
@@ -335,13 +322,13 @@ function PasswordsModal({ title, fields, submitLabel, onSubmit }: PasswordsModal
     )
 }
 
-function Edit({ entryUuid, passwordsUpdate }: { entryUuid: Uuid, passwordsUpdate: Dispatch<Update> }) {
+function Edit({ entryUuid, passwordsUpdate }: { entryUuid: schema.Uuid, passwordsUpdate: Dispatch<Update> }) {
     const [siteName, setSiteName] = useState('')
     const [siteUrl, setSiteUrl] = useState('')
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
 
-    const onEditSubmit = (uuid: Uuid, updateError: UpdateError) => {
+    const onEditSubmit = (uuid: schema.Uuid, updateError: UpdateError, showModal: ShowModal) => {
         return new Promise(() => {
             console.log(uuid, entryUuid, siteName, siteUrl, username, password)
         })
@@ -383,12 +370,12 @@ function Edit({ entryUuid, passwordsUpdate }: { entryUuid: Uuid, passwordsUpdate
 }
 
 type ConfirmDeleteProps = {
-    entryUuid: Uuid,
+    entryUuid: schema.Uuid,
     siteName: string,
     passwordsUpdate: Dispatch<Update>,
 }
 function ConfirmDelete({ entryUuid, siteName, passwordsUpdate }: ConfirmDeleteProps) {
-    const onConfirmDeleteSubmit = (uuid: Uuid) => {
+    const onConfirmDeleteSubmit = (uuid: schema.Uuid, updateError: UpdateError, showModal: ShowModal) => {
         return new Promise(() => {
             console.log(uuid, entryUuid)
         })
@@ -408,7 +395,7 @@ function Add({ passwordsUpdate }: { passwordsUpdate: Dispatch<Update> }) {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
 
-    const onConfirmDeleteSubmit = (uuid: Uuid, updateError: UpdateError) => {
+    const onConfirmDeleteSubmit = (uuid: schema.Uuid, updateError: UpdateError, showModal: ShowModal) => {
         return new Promise(() => {
             console.log(uuid, siteName, siteUrl, username, password)
         })
@@ -450,44 +437,13 @@ function Add({ passwordsUpdate }: { passwordsUpdate: Dispatch<Update> }) {
 }
 
 function Import({ runReload }: { runReload: () => void }) {
-    const [clientId, setClientId] = useState('')
-    const [clientSecret, setClientSecret] = useState('')
-    const [masterPassword, setMasterPassword] = useState('')
-
-    const onImportSubmit = async (uuid: Uuid, updateError: UpdateError, showModal: ShowModal) => {
-        showModal()
-        try {
-            const body: z.infer<typeof bitwardenCredentialsSchema> = { uuid, clientId, clientSecret, masterPassword }
-            const init = { method: 'POST', body: JSON.stringify(body) }
-            const response = await fetch(`/api/${IMPORT_PASSWORDS_ENDPOINT}`, init)
-            if (response.status !== 200) {
-                updateError(apiErrorSchema.parse(await response.json()).error)
-            }
-            runReload()
-        } catch {
-            updateError()
-        }
+    const onImportSubmit = async (uuid: schema.Uuid, updateError: UpdateError, showModal: ShowModal) => {
+        return new Promise(() => {
+            console.log()
+        })
     }
 
     const fields: PasswordsModalField[] = [
-        {
-            field: 'Client ID',
-            value: clientId,
-            setValue: setClientId,
-            hide: false,
-        },
-        {
-            field: 'Client Secret',
-            value: clientSecret,
-            setValue: setClientSecret,
-            hide: true,
-        },
-        {
-            field: 'Master Password',
-            value: masterPassword,
-            setValue: setMasterPassword,
-            hide: true,
-        },
     ]
 
     return <PasswordsModal
@@ -499,35 +455,13 @@ function Import({ runReload }: { runReload: () => void }) {
 }
 
 function Export() {
-    const [clientId, setClientId] = useState('')
-    const [clientSecret, setClientSecret] = useState('')
-    const [password, setPassword] = useState('')
-
-    const onExportSubmit = (uuid: Uuid, updateError: UpdateError) => {
+    const onExportSubmit = (uuid: schema.Uuid, updateError: UpdateError, showModal: ShowModal) => {
         return new Promise(() => {
-            console.log(uuid, clientId, clientSecret, password)
+            console.log()
         })
     }
 
     const fields: PasswordsModalField[] = [
-        {
-            field: 'Client ID',
-            value: clientId,
-            setValue: setClientId,
-            hide: false,
-        },
-        {
-            field: 'Client Secret',
-            value: clientSecret,
-            setValue: setClientSecret,
-            hide: true,
-        },
-        {
-            field: 'Master Password',
-            value: password,
-            setValue: setPassword,
-            hide: true,
-        },
     ]
 
     return <PasswordsModal
