@@ -9,7 +9,6 @@ import useAsyncEffect from 'use-async-effect'
 import { UpdateErrorContext, type UpdateError } from '../components/error'
 import { ICONS } from '../components/icons'
 import { ShowModalContext, type ShowModal } from '../components/modal'
-import type { z } from 'zod'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <Page pageName='passwords'>
@@ -57,6 +56,7 @@ function Passwords() {
 
     const [passwords, passwordsUpdate] = useReducer(updatePasswords, [])
     const [search, setSearch] = useState('')
+    const [visible, setVisible] = useState(false)
     const [reload, setReload] = useState(false)
     const runReload = () => setReload(reload => !reload)
 
@@ -101,6 +101,7 @@ function Passwords() {
             <Entry
                 key={entry.entryUuid}
                 entry={entry}
+                visible={visible}
                 showModal={showModal}
                 passwordsUpdate={passwordsUpdate}
                 updateCopied={updateCopied}
@@ -109,17 +110,20 @@ function Passwords() {
     }
 
     return (
-        <div>
+        <div className='passwords-container'>
             {
                 passwords.length ?
                     <>
-                        <div className='passwords-search-container'>
+                        <div className='passwords-header'>
                             <input
                                 className='passwords-search'
                                 value={search}
                                 placeholder='Search...'
                                 onChange={onSearchChange}
                             />
+                            <button className='icon-button' onClick={() => setVisible(visible => !visible)}>
+                                {visible ? ICONS.EYE_DISABLED : ICONS.EYE_ENABLED}
+                            </button>
                         </div>
                         <li className='passwords-list'>
                             {entryMapper(foundPasswords.filter(entry => entry.favorite))}
@@ -143,13 +147,14 @@ function Passwords() {
 
 type EntryProps = {
     entry: schema.PasswordsEntry,
+    visible: boolean,
     showModal: ShowModal,
     passwordsUpdate: Dispatch<Update>,
     updateCopied: (x: number, y: number) => void,
 }
-function Entry({ entry, showModal, passwordsUpdate, updateCopied }: EntryProps) {
+function Entry({ entry, visible, showModal, passwordsUpdate, updateCopied }: EntryProps) {
     const { entryUuid, siteName, siteUrl, favorite, username, password } = entry
-    const hiddenPassword = '•'.repeat(password.length)
+    const hiddenPassword = visible ? password : '•'.repeat(password.length)
 
     const onFavToggle = () => {
         passwordsUpdate({ type: 'togglefav', entryUuid })
@@ -199,21 +204,21 @@ function Entry({ entry, showModal, passwordsUpdate, updateCopied }: EntryProps) 
                     {siteName}{siteUrl && ` - ${siteUrl}`}
                 </div>
                 <div className='passwords-entry-credentials'>
-                    <span
+                    <div
                         className='credential'
                         onClick={onCopy(username)}
                     >
                         {username}
-                    </span>
+                    </div>
                     &nbsp;
-                    <span
+                    <div
                         className='credential credential-password'
                         onClick={onCopy(password)}
                         onMouseEnter={onShowPassword}
                         onMouseLeave={onHidePassword}
                     >
                         {hiddenPassword}
-                    </span>
+                    </div>
                 </div>
             </div>
 

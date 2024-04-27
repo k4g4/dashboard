@@ -2,8 +2,7 @@ import { useRef, type JSX } from 'react'
 import ReactDOM from 'react-dom/client'
 import { Page, UuidContext } from '../components/page'
 import {
-    useContext, useState, type ChangeEvent, type CSSProperties, type Dispatch,
-    type MouseEvent, type SetStateAction
+    useContext, useState, type ChangeEvent, type CSSProperties
 } from 'react'
 import * as schema from '../api_schema'
 import { UpdateErrorContext, type UpdateError } from '../components/error'

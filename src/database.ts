@@ -3,7 +3,6 @@ import { Database } from 'bun:sqlite'
 import * as schema from './api_schema'
 import { v4 as generateUuid } from 'uuid'
 import migrations from '../migrations.json'
-import type { z } from 'zod'
 
 const PERSIST_DIR = Bun.env.PERSIST_DIR ?? 'persist'
 const DB_DIR = `${PERSIST_DIR}/db`
