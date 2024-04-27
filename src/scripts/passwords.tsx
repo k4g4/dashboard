@@ -47,6 +47,16 @@ function updatePasswords(passwords: schema.PasswordsEntry[], update: Update): sc
     }
 }
 
+// this is just to manage prop-drilling
+type ModalData = {
+    uuid: schema.Uuid,
+    entryUuid: schema.Uuid | null,
+    updateError: UpdateError,
+    showModal: ShowModal,
+    runReload: () => void,
+    passwordsUpdate: Dispatch<Update>,
+}
+
 const FADE_OUT_TIME = 1_000
 
 function Passwords() {
@@ -59,6 +69,15 @@ function Passwords() {
     const [visible, setVisible] = useState(false)
     const [reload, setReload] = useState(false)
     const runReload = () => setReload(reload => !reload)
+
+    const modalData: ModalData = {
+        uuid,
+        entryUuid: null,
+        updateError,
+        showModal,
+        runReload,
+        passwordsUpdate,
+    }
 
     const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
         setSearch(event.target.value)
@@ -102,9 +121,8 @@ function Passwords() {
                 key={entry.entryUuid}
                 entry={entry}
                 visible={visible}
-                showModal={showModal}
-                passwordsUpdate={passwordsUpdate}
                 updateCopied={updateCopied}
+                modalData={modalData}
             />
         ))
     }
@@ -133,11 +151,7 @@ function Passwords() {
                     :
                     <></>
             }
-            <Options
-                showModal={showModal}
-                passwordsUpdate={passwordsUpdate}
-                runReload={runReload}
-            />
+            <Options modalData={modalData} />
             <div className='copied-banner drop-shadow' ref={copiedBanner}>
                 <h3>Copied!</h3>
             </div>
@@ -148,30 +162,17 @@ function Passwords() {
 type EntryProps = {
     entry: schema.PasswordsEntry,
     visible: boolean,
-    showModal: ShowModal,
-    passwordsUpdate: Dispatch<Update>,
     updateCopied: (x: number, y: number) => void,
+    modalData: ModalData,
 }
-function Entry({ entry, visible, showModal, passwordsUpdate, updateCopied }: EntryProps) {
+function Entry({ entry, visible, updateCopied, modalData }: EntryProps) {
     const { entryUuid, siteName, siteUrl, favorite, username, password } = entry
     const hiddenPassword = visible ? password : '•'.repeat(password.length)
 
+    const entryModalData: ModalData = { ...modalData, entryUuid }
+
     const onFavToggle = () => {
-        passwordsUpdate({ type: 'togglefav', entryUuid })
-    }
-
-    const onEditClick = () => {
-        showModal(<Edit entryUuid={entryUuid} passwordsUpdate={passwordsUpdate} />)
-    }
-
-    const onDeleteClick = () => {
-        showModal(
-            <ConfirmDelete
-                entryUuid={entryUuid}
-                siteName={siteName}
-                passwordsUpdate={passwordsUpdate}
-            />
-        )
+        entryModalData.passwordsUpdate({ type: 'togglefav', entryUuid })
     }
 
     const onCopy = (copyText: string) => {
@@ -226,14 +227,14 @@ function Entry({ entry, visible, showModal, passwordsUpdate, updateCopied }: Ent
                 <button
                     className='icon-button passwords-entry-button'
                     title='Edit'
-                    onClick={onEditClick}
+                    onClick={() => entryModalData.showModal(<Upsert modalData={entryModalData} />)}
                 >
                     {ICONS.EDIT}
                 </button>
                 <button
                     className='icon-button passwords-entry-button passwords-entry-delete-button'
                     title='Delete'
-                    onClick={onDeleteClick}
+                    onClick={() => entryModalData.showModal(<ConfirmDelete siteName={siteName} modalData={entryModalData} />)}
                 >
                     {ICONS.XMARK}
                 </button>
@@ -242,29 +243,22 @@ function Entry({ entry, visible, showModal, passwordsUpdate, updateCopied }: Ent
     )
 }
 
-type OptionsProps = {
-    showModal: ShowModal,
-    passwordsUpdate: Dispatch<Update>,
-    runReload: () => void,
-}
-function Options({ showModal, passwordsUpdate, runReload }: OptionsProps) {
+function Options({ modalData }: { modalData: ModalData }) {
     return (
         <div className='passwords-options'>
             <button
                 className='button'
-                onClick={() => showModal(<Add passwordsUpdate={passwordsUpdate} />)}
+                onClick={() => modalData.showModal(<Upsert modalData={modalData} />)}
             >
                 Add
             </button>
             <button
                 className='button'
-                onClick={() => showModal(<Import runReload={runReload} />)}
             >
                 Import
             </button>
             <button
                 className='button'
-                onClick={() => showModal(<Export />)}
             >
                 Export
             </button>
@@ -272,22 +266,29 @@ function Options({ showModal, passwordsUpdate, runReload }: OptionsProps) {
     )
 }
 
-type PasswordsModalField = {
-    field: string,
-    value: string,
-    setValue: Dispatch<SetStateAction<string>>,
-    hide: boolean,
-}
-type PasswordsModalProps = {
-    title: string,
-    fields: PasswordsModalField[],
-    submitLabel: string,
-    onSubmit: (uuid: schema.Uuid, updateError: UpdateError, showModal: ShowModal) => Promise<any>,
-}
-function PasswordsModal({ title, fields, submitLabel, onSubmit }: PasswordsModalProps) {
-    const uuid = useContext(UuidContext)
-    const updateError = useContext(UpdateErrorContext)
-    const showModal = useContext(ShowModalContext)
+function Upsert({ modalData: { uuid, entryUuid, updateError, showModal, passwordsUpdate } }: { modalData: ModalData }) {
+    const fields: { field: string, valueState: [string, Dispatch<SetStateAction<string>>], hide: boolean }[] = [
+        {
+            field: 'Website Name',
+            valueState: useState(''),
+            hide: false,
+        },
+        {
+            field: 'Website URL',
+            valueState: useState(''),
+            hide: false,
+        },
+        {
+            field: 'Username',
+            valueState: useState(''),
+            hide: false,
+        },
+        {
+            field: 'Password',
+            valueState: useState(''),
+            hide: true,
+        },
+    ]
 
     const onFieldChange = (setValue: Dispatch<SetStateAction<string>>) => {
         return (event: ChangeEvent<HTMLInputElement>) => {
@@ -295,18 +296,17 @@ function PasswordsModal({ title, fields, submitLabel, onSubmit }: PasswordsModal
         }
     }
 
-    const onModalSubmit = async (event: FormEvent) => {
+    const onUpsertSubmit = async (event: FormEvent) => {
         event.preventDefault()
-        await onSubmit(uuid, updateError, showModal)
     }
 
     return (
-        <form onSubmit={onModalSubmit}>
+        <form onSubmit={onUpsertSubmit}>
             <div className='passwords-modal'>
-                <h1>{title}</h1>
+                <h1>{entryUuid ? 'Edit Entry' : 'Add New Entry'}</h1>
                 <div className='modal-fields'>
                     {
-                        fields.map(({ field, value, setValue, hide }) => {
+                        fields.map(({ field, valueState: [value, setValue], hide }) => {
                             return (
                                 <Fragment key={field}>
                                     <label>{field}</label>
@@ -321,158 +321,36 @@ function PasswordsModal({ title, fields, submitLabel, onSubmit }: PasswordsModal
                         })
                     }
                 </div>
-                <input type='submit' className='button submit-button' value={submitLabel} />
+                <input type='submit' className='button submit-button' value={entryUuid ? 'Edit' : 'Add'} />
             </div>
         </form>
     )
 }
 
-function Edit({ entryUuid, passwordsUpdate }: { entryUuid: schema.Uuid, passwordsUpdate: Dispatch<Update> }) {
-    const [siteName, setSiteName] = useState('')
-    const [siteUrl, setSiteUrl] = useState('')
-    const [username, setUsername] = useState('')
-    const [password, setPassword] = useState('')
-
-    const onEditSubmit = (uuid: schema.Uuid, updateError: UpdateError, showModal: ShowModal) => {
-        return new Promise(() => {
-            console.log(uuid, entryUuid, siteName, siteUrl, username, password)
-        })
+function ConfirmDelete(
+    {
+        siteName,
+        modalData: { uuid, entryUuid, updateError, showModal, passwordsUpdate },
+    }: { siteName: string, modalData: ModalData }
+) {
+    const onConfirmDeleteClick = async (event: FormEvent) => {
+        event.preventDefault()
     }
 
-    const fields: PasswordsModalField[] = [
-        {
-            field: 'Website Name',
-            value: siteName,
-            setValue: setSiteName,
-            hide: false,
-        },
-        {
-            field: 'Website URL',
-            value: siteUrl,
-            setValue: setSiteUrl,
-            hide: false,
-        },
-        {
-            field: 'Username',
-            value: username,
-            setValue: setUsername,
-            hide: false,
-        },
-        {
-            field: 'Password',
-            value: password,
-            setValue: setPassword,
-            hide: true,
-        },
-    ]
-
-    return <PasswordsModal
-        title='Add Password Entry'
-        fields={fields}
-        submitLabel='Edit'
-        onSubmit={onEditSubmit}
-    />
-}
-
-type ConfirmDeleteProps = {
-    entryUuid: schema.Uuid,
-    siteName: string,
-    passwordsUpdate: Dispatch<Update>,
-}
-function ConfirmDelete({ entryUuid, siteName, passwordsUpdate }: ConfirmDeleteProps) {
-    const onConfirmDeleteSubmit = (uuid: schema.Uuid, updateError: UpdateError, showModal: ShowModal) => {
-        return new Promise(() => {
-            console.log(uuid, entryUuid)
-        })
-    }
-
-    return <PasswordsModal
-        title={`Delete entry for '${siteName}'?`}
-        fields={[]}
-        submitLabel='Confirm'
-        onSubmit={onConfirmDeleteSubmit}
-    />
-}
-
-function Add({ passwordsUpdate }: { passwordsUpdate: Dispatch<Update> }) {
-    const [siteName, setSiteName] = useState('')
-    const [siteUrl, setSiteUrl] = useState('')
-    const [username, setUsername] = useState('')
-    const [password, setPassword] = useState('')
-
-    const onConfirmDeleteSubmit = (uuid: schema.Uuid, updateError: UpdateError, showModal: ShowModal) => {
-        return new Promise(() => {
-            console.log(uuid, siteName, siteUrl, username, password)
-        })
-    }
-
-    const fields: PasswordsModalField[] = [
-        {
-            field: 'Website Name',
-            value: siteName,
-            setValue: setSiteName,
-            hide: false,
-        },
-        {
-            field: 'Website URL',
-            value: siteUrl,
-            setValue: setSiteUrl,
-            hide: false,
-        },
-        {
-            field: 'Username',
-            value: username,
-            setValue: setUsername,
-            hide: false,
-        },
-        {
-            field: 'Password',
-            value: password,
-            setValue: setPassword,
-            hide: true,
-        },
-    ]
-
-    return <PasswordsModal
-        title='Add Password Entry'
-        fields={fields}
-        submitLabel='Add'
-        onSubmit={onConfirmDeleteSubmit}
-    />
+    return (
+        <div className='passwords-modal'>
+            <h1>Delete entry for '{siteName}'?</h1>
+            <button className='button submit-button' onClick={onConfirmDeleteClick}>
+                Confirm
+            </button>
+        </div>
+    )
 }
 
 function Import({ runReload }: { runReload: () => void }) {
-    const onImportSubmit = async (uuid: schema.Uuid, updateError: UpdateError, showModal: ShowModal) => {
-        return new Promise(() => {
-            console.log()
-        })
-    }
 
-    const fields: PasswordsModalField[] = [
-    ]
-
-    return <PasswordsModal
-        title='Import from Bitwarden'
-        fields={fields}
-        submitLabel='Import'
-        onSubmit={onImportSubmit}
-    />
 }
 
 function Export() {
-    const onExportSubmit = (uuid: schema.Uuid, updateError: UpdateError, showModal: ShowModal) => {
-        return new Promise(() => {
-            console.log()
-        })
-    }
 
-    const fields: PasswordsModalField[] = [
-    ]
-
-    return <PasswordsModal
-        title='Export to Bitwarden'
-        fields={fields}
-        submitLabel='Export'
-        onSubmit={onExportSubmit}
-    />
 }
