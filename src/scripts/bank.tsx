@@ -46,6 +46,7 @@ function Bank() {
                 hist: hist.map(({ balance, isoTimestamp }) => ({ balance, date: moment(isoTimestamp) })),
             })
             setMaybeMore(hist.length === schema.BANK_HISTORY_LENGTH)
+            setPage(hist.length === schema.BANK_HISTORY_LENGTH ? 1 : 0)
         }
     }, [reload])
 
@@ -163,7 +164,7 @@ function Input({ uuid, updateError, account, runReload }: InputProps) {
                 setAdding(false)
 
                 const body: z.infer<typeof schema.bankTransactBody> = { uuid, amount, adding }
-                const options = { body, schema: schema.bankAccountResponse, updateError }
+                const options = { body, schema: schema.bankTransactResponse, updateError }
                 const response = await schema.apiFetch('banktransact', options)
                 if (response) {
                     runReload()

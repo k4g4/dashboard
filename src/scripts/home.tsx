@@ -2,7 +2,7 @@ import ReactDOM from 'react-dom/client'
 import { Page, UuidContext } from '../components/page'
 import {
     Fragment,
-    useContext, useState, type ChangeEvent, type Dispatch,
+    useContext, useRef, useState, type ChangeEvent, type Dispatch,
     type FormEvent, type MouseEvent, type SetStateAction
 } from 'react'
 import { useAsyncEffect } from 'use-async-effect'
@@ -103,6 +103,7 @@ function Gallery() {
     const [imageIndex, setImageIndex] = useState(0)
     const [fullscreen, setFullscreen] = useState(false)
     const [reload, setReload] = useState(false)
+    const uploader = useRef<HTMLInputElement>(null)
 
     const decrementImageIndex = () => {
         setImageIndex(index => index === 0 ? (images.length - 1) : index - 1)
@@ -124,27 +125,29 @@ function Gallery() {
 
     // looks hacky, but this is what mozilla recommends!
     const onUpload = (event: MouseEvent<HTMLButtonElement>) => {
-        const uploader = document.querySelector<HTMLInputElement>('input[type="file"]')!
+        if (uploader.current) {
+            uploader.current.addEventListener('change', async function () {
+                if (uploader.current) {
+                    let body = new FormData()
+                    body.append('uuid', uuid)
+                    if (uploader.current.files) {
+                        const max = uploader.current.files.length < 8 ? uploader.current.files.length : 8
+                        for (let i = 0; i < max; i++) {
+                            body.append(`image_${i}`, uploader.current.files[i])
+                        }
+                    } else {
+                        updateError('no files provided')
+                    }
 
-        uploader.addEventListener('change', async function () {
-            let body = new FormData()
-            body.append('uuid', uuid)
-            if (uploader.files) {
-                const max = uploader.files.length < 8 ? uploader.files.length : 8
-                for (let i = 0; i < max; i++) {
-                    body.append(`image_${i}`, uploader.files[i])
+                    if (await schema.apiFetch('gallery', { body, updateError })) {
+                        setImageIndex(0)
+                        setReload(reload => !reload)
+                    }
                 }
-            } else {
-                updateError('no files provided')
-            }
+            })
 
-            if (await schema.apiFetch('gallery', { body, updateError })) {
-                setImageIndex(0)
-                setReload(reload => !reload)
-            }
-        })
-
-        uploader.click()
+            uploader.current.click()
+        }
     }
 
     const onDelete = async () => {
@@ -163,7 +166,7 @@ function Gallery() {
         <div className='section gallery'>
             <h1>Gallery</h1>
             <div className='section-header gallery-header'>
-                <input type='file' accept='image/*' multiple />
+                <input type='file' accept='image/*' multiple ref={uploader} />
                 <button className='icon-button upload-button' onClick={onUpload} title='Upload'>
                     {ICONS.UPLOAD}
                 </button>

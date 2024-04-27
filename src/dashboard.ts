@@ -47,7 +47,7 @@ export class Dashboard {
         const { pathname, searchParams } = new URL(url)
 
         if (pathname.startsWith('/api')) {
-            // trim off /api/
+            // strip leading /api/
             const endpoint = pathname.slice(5)
             if (schema.isEndpoint(endpoint)) {
                 try {
@@ -64,7 +64,8 @@ export class Dashboard {
                             const messages = 'Parsing errors:\n' + error.issues.map(issue => `${issue.message}\n`)
                             return this.serve400(messages)
                         }
-                    } else if (error instanceof SyntaxError) { // this occurs if no JSON body was found when one was expected
+                    } else if (error instanceof SyntaxError) {
+                        // this occurs if no JSON body was found when one was expected
                         return this.serve400('no JSON provided')
                     } else {
                         throw error
@@ -81,7 +82,8 @@ export class Dashboard {
             }
 
             if (pathname.startsWith(`/${DATA_DIR}`)) {
-                const dataPath = pathname.slice(1) // strip leading /
+                // strip leading /
+                const dataPath = pathname.slice(1)
                 return new Response(Bun.file(dataPath))
             }
 
@@ -150,7 +152,8 @@ export class Dashboard {
     }
 
     async fetchScript(pathname: string) {
-        const builtScriptName = pathname.slice(1) // trim off leading /
+        // strip leading /
+        const builtScriptName = pathname.slice(1)
 
         if (DEVELOPMENT) {
             const scriptName = builtScriptName.replace('.js', '.tsx')

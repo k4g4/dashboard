@@ -7,14 +7,10 @@ import {
     useContext,
 } from 'react'
 import { jwtDecode } from 'jwt-decode'
-import {
-    apiErrorSchema, GOOGLE_ID_PARAM, GOOGLE_LOGIN_ENDPOINT, LOGIN_ENDPOINT, loginBodySchema,
-    loginResponseSchema, MAX_PASSWORD_LEN, MAX_USERNAME_LEN, MIN_LEN, type Uuid
-} from '../api_schema'
+import * as schema from '../api_schema'
 import { UpdateErrorContext } from './error'
 
-type LoginProps = { setUuid: Dispatch<SetStateAction<Uuid | null>> }
-
+type LoginProps = { setUuid: Dispatch<SetStateAction<schema.Uuid | null>> }
 export function Login({ setUuid }: LoginProps) {
     const updateError = useContext(UpdateErrorContext)
 
@@ -43,9 +39,9 @@ export function Login({ setUuid }: LoginProps) {
             }
         }
     }
-    const onUsernameChange = newOnFieldChange(setUsername, MAX_USERNAME_LEN, /^[A-Za-z0-9_]*$/)
-    const onPasswordChange = newOnFieldChange(setPassword, MAX_PASSWORD_LEN, /^[^ ]*$/)
-    const onPassword2Change = newOnFieldChange(setPassword2, MAX_PASSWORD_LEN, /^[A-Za-z0-9_]*$/)
+    const onUsernameChange = newOnFieldChange(setUsername, schema.MAX_USERNAME_LEN, /^[A-Za-z0-9_]*$/)
+    const onPasswordChange = newOnFieldChange(setPassword, schema.MAX_PASSWORD_LEN, /^[^ ]*$/)
+    const onPassword2Change = newOnFieldChange(setPassword2, schema.MAX_PASSWORD_LEN, /^[A-Za-z0-9_]*$/)
 
     const onSubmit = async (event: FormEvent) => {
         event.preventDefault()
@@ -57,24 +53,18 @@ export function Login({ setUuid }: LoginProps) {
             }
         }
 
-        const loginBody = loginBodySchema.safeParse({ username, password, signingUp })
+        const loginBody = schema.loginBody.safeParse({ username, password, signingUp })
         if (!loginBody.success) {
-            updateError(`username and password must be at least ${MIN_LEN} characters`)
+            updateError(`username and password must be at least ${schema.MIN_LEN} characters`)
             return
         }
 
-        const init = { body: JSON.stringify(loginBody.data), method: 'POST' }
-        try {
-            const response = await fetch(`/api/${LOGIN_ENDPOINT}`, init)
-            const body = await response.json()
-            if (response.status === 200) {
-                setUuid(loginResponseSchema.parse(body).uuid)
-            } else {
-                updateError(apiErrorSchema.parse(body).error)
-            }
-        } catch {
-            updateError()
+        const response = await schema.apiFetch('login', { body: loginBody.data, schema: schema.loginResponse, updateError })
+        if (response) {
+
+            setUuid(response.uuid)
         }
+
     }
 
     const leftButtonLabel = signingUp ? 'Submit' : 'Log in'
@@ -114,19 +104,13 @@ function GoogleLoginButton({ setUuid }: LoginProps) {
             return
         }
         const sub = jwtDecode(credential).sub
-        if (!sub) {
-            updateError()
-            return
-        }
-        try {
-            const response = await fetch(`/api/${GOOGLE_LOGIN_ENDPOINT}?${GOOGLE_ID_PARAM}=${sub}`)
-            const body = await response.json() as unknown
-            if (response.status === 200) {
-                setUuid(loginResponseSchema.parse(body).uuid)
-            } else {
-                updateError(apiErrorSchema.parse(body).error)
+        if (sub) {
+            const options = { params: { googleid: sub }, schema: schema.loginResponse, updateError }
+            const response = await schema.apiFetch('googlelogin', options)
+            if (response) {
+                setUuid(response.uuid)
             }
-        } catch {
+        } else {
             updateError()
         }
     }

@@ -111,7 +111,7 @@ const endpoints = [
 export type Endpoint = typeof endpoints[number]
 
 export function isEndpoint(endpoint: string): endpoint is Endpoint {
-    return endpoint in endpoints
+    return (endpoints as unknown as string[]).includes(endpoint)
 }
 
 const params = {
@@ -124,7 +124,16 @@ const params = {
 export function getParam(
     searchParams: URLSearchParams
 ): <Param extends keyof typeof params>(param: Param) => z.infer<typeof params[Param]> {
-    return param => params[param].parse(searchParams.get(param))
+    return param => {
+        let value = searchParams.get(param)
+        if (value) {
+            try {
+                value = JSON.parse(value)
+            } catch { }
+            return params[param].parse(value)
+        }
+        throw new Error
+    }
 }
 
 type Params = { [param in keyof typeof params]: z.infer<typeof params[param]> }
@@ -133,7 +142,7 @@ export async function apiFetch<Schema extends z.ZodTypeAny>(
     endpoint: Endpoint,
     { }: {
         params?: Partial<Params>,
-        body?: unknown,
+        body?: {},
         schema: Schema,
         updateError?: UpdateError,
     },
@@ -142,7 +151,7 @@ export async function apiFetch(
     endpoint: Endpoint,
     { }: {
         params?: Partial<Params>,
-        body?: unknown,
+        body?: {},
         schema?: undefined,
         updateError?: UpdateError,
     },
@@ -152,7 +161,7 @@ export async function apiFetch<Schema extends z.ZodTypeAny>(
     { params, body, schema, updateError }: {
         updateError?: UpdateError,
         params?: Partial<Params>,
-        body?: unknown,
+        body?: {},
         schema?: Schema,
     },
 ) {
@@ -161,7 +170,13 @@ export async function apiFetch<Schema extends z.ZodTypeAny>(
         searchParams.append(key, value.toString())
     }
     try {
-        const response = await fetch(`/api/${endpoint}/${searchParams}`, body ?? { method: 'POST', body: JSON.stringify(body) })
+        let init
+        if (body instanceof FormData) {
+            init = { method: 'POST', body }
+        } else if (body) {
+            init = { method: 'POST', body: JSON.stringify(body) }
+        }
+        const response = await fetch(`/api/${endpoint}?${searchParams}`, init)
         if (response.status === 200) {
             if (schema) {
                 return schema.parse(await response.json())

@@ -1,7 +1,8 @@
 import { useContext, useEffect, useState, type Dispatch, type PropsWithChildren, type SetStateAction } from 'react'
 import { STORAGE_UUID_KEY, UuidContext, type PageName } from './page'
-import { LOGOUT_ENDPOINT, UUID_PARAM } from '../api_schema'
+import * as schema from '../api_schema'
 import { ICONS } from './icons'
+import { UpdateErrorContext } from './error'
 
 type MenuState = 'show' | 'hide' | 'init'
 
@@ -46,9 +47,10 @@ function NavItem({ href, label, selected, underline }: NavItemProps) {
 
 function Logout() {
     const uuid = useContext(UuidContext)
+    const updateError = useContext(UpdateErrorContext)
+
     const onLogout = async () => {
-        const response = await fetch(`/api/${LOGOUT_ENDPOINT}?${UUID_PARAM}=${uuid}`)
-        if (response.status === 200) {
+        if (await schema.apiFetch('logout', { params: { uuid }, updateError })) {
             localStorage.removeItem(STORAGE_UUID_KEY)
             window.location.href = '/'
         }
