@@ -140,11 +140,13 @@ export function getParam(
 ): <Param extends keyof typeof params>(param: Param) => z.infer<typeof params[Param]> {
     return param => {
         const value = searchParams.get(param)
-        let parsed: unknown
         if (value) {
+            let parsed: unknown
             try {
                 parsed = JSON.parse(value)
-            } catch { }
+            } catch {
+                parsed = value
+            }
             return params[param].parse(parsed)
         }
         throw new Error

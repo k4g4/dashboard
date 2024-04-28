@@ -325,11 +325,11 @@ function Options({ context, entries }: { context: Context, entries: schema.Passw
             >
                 Add
             </button>
-            <input type='file' accept='.json' onChange={onImport} ref={uploader} />
+            <input type='file' accept='.json' onChange={onImport} ref={uploader} hidden />
             <button className='button' onClick={() => uploader.current?.click()}>
                 Import
             </button>
-            <a ref={downloader} />
+            <a ref={downloader} hidden />
             <button className='button' onClick={onExport}>
                 Export
             </button>
