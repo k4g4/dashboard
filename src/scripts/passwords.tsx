@@ -11,6 +11,7 @@ import { ICONS } from '../components/icons'
 import { ShowModalContext, type ShowModal } from '../components/modal'
 import type { z } from 'zod'
 import { v4 as generateUuid } from 'uuid'
+import moment from 'moment'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <Page pageName='passwords'>
@@ -25,19 +26,19 @@ type Update =
     | { type: 'edit', editedEntry: schema.PasswordsEntry }
     | { type: 'togglefav', entryUuid: schema.Uuid }
 
-function updatePasswords(passwords: schema.PasswordsEntry[], update: Update): schema.PasswordsEntry[] {
+function updateEntries(entries: schema.PasswordsEntry[], update: Update): schema.PasswordsEntry[] {
     switch (update.type) {
         case 'assign': return update.entries
 
-        case 'add': return [...passwords, update.newEntry]
+        case 'add': return [...entries, update.newEntry]
 
-        case 'remove': return passwords.filter(({ entryUuid }) => entryUuid !== update.entryUuid)
+        case 'remove': return entries.filter(({ entryUuid }) => entryUuid !== update.entryUuid)
 
-        case 'edit': return passwords.map(entry =>
+        case 'edit': return entries.map(entry =>
             entry.entryUuid === update.editedEntry.entryUuid ? update.editedEntry : entry
         )
 
-        case 'togglefav': return passwords.map(entry =>
+        case 'togglefav': return entries.map(entry =>
             entry.entryUuid === update.entryUuid ?
                 {
                     ...entry,
@@ -56,7 +57,7 @@ type Context = {
     updateError: UpdateError,
     showModal: ShowModal,
     runReload: () => void,
-    passwordsUpdate: Dispatch<Update>,
+    entriesUpdate: Dispatch<Update>,
 }
 
 const FADE_OUT_TIME = 1_000
@@ -66,7 +67,7 @@ function Passwords() {
     const updateError = useContext(UpdateErrorContext)
     const showModal = useContext(ShowModalContext)
 
-    const [passwords, passwordsUpdate] = useReducer(updatePasswords, [])
+    const [entries, entriesUpdate] = useReducer(updateEntries, [])
     const [search, setSearch] = useState('')
     const [visible, setVisible] = useState(false)
     const [reload, setReload] = useState(false)
@@ -78,23 +79,23 @@ function Passwords() {
         updateError,
         showModal,
         runReload,
-        passwordsUpdate,
+        entriesUpdate,
     }
 
     const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
         setSearch(event.target.value)
     }
 
-    const foundPasswords = passwords.filter(password =>
-        password.siteName.toLowerCase().includes(search.toLowerCase()) ||
-        password.siteUrl?.toLowerCase().includes(search.toLowerCase())
+    const foundEntries = entries.filter(entry =>
+        entry.siteName.toLowerCase().includes(search.toLowerCase()) ||
+        entry.siteUrl?.toLowerCase().includes(search.toLowerCase())
     )
 
     useAsyncEffect(async isMounted => {
         const options = { params: { uuid }, schema: schema.getPasswordsResponse, updateError }
         const response = await schema.apiFetch('passwords', options)
         if (response && isMounted()) {
-            passwordsUpdate({ type: 'assign', entries: response })
+            entriesUpdate({ type: 'assign', entries: response })
         }
     }, [reload])
 
@@ -117,8 +118,8 @@ function Passwords() {
         setCopiedTimer(setTimeout(() => setCopiedTimer(undefined), FADE_OUT_TIME))
     }
 
-    const entryMapper = (passwords: schema.PasswordsEntry[]) => {
-        return passwords.map(entry => (
+    const entryMapper = (entries: schema.PasswordsEntry[]) => {
+        return entries.map(entry => (
             <Entry
                 key={entry.entryUuid}
                 entry={entry}
@@ -132,7 +133,7 @@ function Passwords() {
     return (
         <div className='passwords-container'>
             {
-                passwords.length ?
+                entries.length ?
                     <>
                         <div className='passwords-header'>
                             <input
@@ -146,14 +147,14 @@ function Passwords() {
                             </button>
                         </div>
                         <li className='passwords-list'>
-                            {entryMapper(foundPasswords.filter(entry => entry.favorite))}
-                            {entryMapper(foundPasswords.filter(entry => !entry.favorite))}
+                            {entryMapper(foundEntries.filter(entry => entry.favorite))}
+                            {entryMapper(foundEntries.filter(entry => !entry.favorite))}
                         </li>
                     </>
                     :
                     <></>
             }
-            <Options context={context} />
+            <Options context={context} entries={entries} />
             <div className='copied-banner drop-shadow' ref={copiedBanner}>
                 <h3>Copied!</h3>
             </div>
@@ -177,7 +178,7 @@ function Entry({ entry, visible, updateCopied, context }: EntryProps) {
             passwordsEntry: { ...entry, favorite: !entry.favorite },
         }
         if (await schema.apiFetch('passwords', { body, updateError: context.updateError })) {
-            context.passwordsUpdate({ type: 'togglefav', entryUuid })
+            context.entriesUpdate({ type: 'togglefav', entryUuid })
         }
     }
 
@@ -251,8 +252,9 @@ function Entry({ entry, visible, updateCopied, context }: EntryProps) {
     )
 }
 
-function Options({ context }: { context: Context }) {
+function Options({ context, entries }: { context: Context, entries: schema.PasswordsEntry[] }) {
     const uploader = useRef<HTMLInputElement>(null)
+    const downloader = useRef<HTMLAnchorElement>(null)
 
     const onImport = async (event: ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files.length > 0) {
@@ -274,7 +276,40 @@ function Options({ context }: { context: Context }) {
     }
 
     const onExport = () => {
+        type BitwardenItem =
+            & z.infer<typeof schema.bitwardenPasswordItem>
+            & {
+                object: 'item',
+                type: 1,
+                deletedDate: null,
+            }
 
+        if (downloader.current) {
+            const items =
+                entries.map((entry): BitwardenItem => ({
+                    id: entry.entryUuid,
+                    deletedDate: null,
+                    object: 'item',
+                    type: 1,
+                    favorite: entry.favorite,
+                    name: entry.siteName,
+                    login: {
+                        uris: [{ uri: entry.siteUrl }],
+                        username: entry.username,
+                        password: entry.password,
+                    },
+                }))
+            const data = {
+                encrypted: false,
+                folders: [],
+                items,
+            }
+            const file = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+            downloader.current.href = URL.createObjectURL(file)
+            downloader.current.download = `bitwarden_export_${moment().format('YYYYMMDDHHmmss')}.json`
+            downloader.current.click()
+            URL.revokeObjectURL(downloader.current.href)
+        }
     }
 
     return (
@@ -289,6 +324,7 @@ function Options({ context }: { context: Context }) {
             <button className='button' onClick={() => uploader.current?.click()}>
                 Import
             </button>
+            <a ref={downloader} />
             <button className='button' onClick={onExport}>
                 Export
             </button>
@@ -302,7 +338,7 @@ function Options({ context }: { context: Context }) {
     )
 }
 
-function Upsert({ context: { uuid, entry, updateError, showModal, passwordsUpdate } }: { context: Context }) {
+function Upsert({ context: { uuid, entry, updateError, showModal, entriesUpdate: passwordsUpdate } }: { context: Context }) {
     const [siteName, setSiteName] = useState(entry?.siteName ?? '')
     const [siteUrl, setSiteUrl] = useState(entry?.siteUrl ?? '')
     const [username, setUsername] = useState(entry?.username ?? '')
@@ -403,7 +439,7 @@ function Upsert({ context: { uuid, entry, updateError, showModal, passwordsUpdat
     )
 }
 
-function ConfirmDelete({ context: { uuid, entry, updateError, showModal, passwordsUpdate } }: { context: Context }) {
+function ConfirmDelete({ context: { uuid, entry, updateError, showModal, entriesUpdate: passwordsUpdate } }: { context: Context }) {
     const onConfirmDeleteClick = async (event: FormEvent) => {
         const body: z.infer<typeof schema.deletePasswordBody> = {
             uuid,

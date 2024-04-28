@@ -149,8 +149,6 @@ export class Dashboard {
 
             case 'importpasswords': return await this.importPasswords(schema.importBitwardenBody.parse(await req.json()))
 
-            case 'exportpasswords': return await this.exportPasswords()
-
             default: return this.serve404()
         }
     }

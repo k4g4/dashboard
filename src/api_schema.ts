@@ -118,7 +118,6 @@ const endpoints = [
     'passwords',
     'deletepassword',
     'importpasswords',
-    'exportpasswords',
 ] as const
 
 export type Endpoint = typeof endpoints[number]
