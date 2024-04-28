@@ -97,11 +97,13 @@ export const bitwardenPasswordItem = z.object({
     }),
 }).omit({ object: true, type: true, deletedDate: true })
 
+export const bitwardenOuterFormat = z.object({
+    items: z.array(z.unknown()),
+})
+
 export const importBitwardenBody = z.object({
     uuid,
-    bwJson: z.object({
-        items: z.array(z.unknown()),
-    }),
+    bwJson: bitwardenOuterFormat,
 })
 
 const endpoints = [
@@ -137,12 +139,13 @@ export function getParam(
     searchParams: URLSearchParams
 ): <Param extends keyof typeof params>(param: Param) => z.infer<typeof params[Param]> {
     return param => {
-        let value = searchParams.get(param)
+        const value = searchParams.get(param)
+        let parsed: unknown
         if (value) {
             try {
-                value = JSON.parse(value)
+                parsed = JSON.parse(value)
             } catch { }
-            return params[param].parse(value)
+            return params[param].parse(parsed)
         }
         throw new Error
     }
@@ -152,18 +155,18 @@ type Params = { [param in keyof typeof params]: z.infer<typeof params[param]> }
 
 export async function apiFetch<Schema extends z.ZodTypeAny>(
     endpoint: Endpoint,
-    { }: {
+    options: {
         params?: Partial<Params>,
-        body?: {},
+        body?: NonNullable<unknown>,
         schema: Schema,
         updateError?: UpdateError,
     },
 ): Promise<z.TypeOf<Schema> | null>
 export async function apiFetch(
     endpoint: Endpoint,
-    { }: {
+    options: {
         params?: Partial<Params>,
-        body?: {},
+        body?: NonNullable<unknown>,
         schema?: undefined,
         updateError?: UpdateError,
     },
@@ -173,7 +176,7 @@ export async function apiFetch<Schema extends z.ZodTypeAny>(
     { params, body, schema, updateError }: {
         updateError?: UpdateError,
         params?: Partial<Params>,
-        body?: {},
+        body?: NonNullable<unknown>,
         schema?: Schema,
     },
 ) {
@@ -191,7 +194,9 @@ export async function apiFetch<Schema extends z.ZodTypeAny>(
         const response = await fetch(`/api/${endpoint}?${searchParams}`, init)
         if (response.status === 200) {
             if (schema) {
-                return schema.parse(await response.json())
+                // https://zod.dev/?id=inferring-the-inferred-type
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+                return schema.parse(await response.json()) as z.infer<Schema>
             }
             return true
         } else if (response.status === 404) {

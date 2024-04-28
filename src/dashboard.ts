@@ -13,13 +13,13 @@ const DEVELOPMENT = Bun.env.DEVELOPMENT === 'true'
 const TIMEZONE = Bun.env.TIMEZONE ?? 'UTC'
 
 const TEMPLATE = include('pages/template.htm')
-const NAME_FIELD = '{NAME}' as const
-const DEV_FIELD = '{DEVELOPMENT}' as const
-const SRC_DIR = 'src' as const
-const PAGE_SCRIPTS = `${SRC_DIR}/scripts` as const
-const ASSETS_DIR = 'assets' as const
-const DATA_DIR = `${PERSIST_DIR}/data` as const
-const GALLERY = 'gallery' as const
+const NAME_FIELD = '{NAME}'
+const DEV_FIELD = '{DEVELOPMENT}'
+const SRC_DIR = 'src'
+const PAGE_SCRIPTS = `${SRC_DIR}/scripts`
+const ASSETS_DIR = 'assets'
+const DATA_DIR = `${PERSIST_DIR}/data`
+const GALLERY = 'gallery'
 
 export class Dashboard {
     scripts: Map<string, number>
@@ -61,7 +61,7 @@ export class Dashboard {
                         if (error.issues.length == 1) {
                             return this.serve400(`Parsing error: ${error.issues[0].message}`)
                         } else {
-                            const messages = 'Parsing errors:\n' + error.issues.map(issue => `${issue.message}\n`)
+                            const messages = `Parsing errors:\n${error.issues.map(issue => issue.message).join('\n')}`
                             return this.serve400(messages)
                         }
                     } else if (error instanceof SyntaxError) {
@@ -103,21 +103,21 @@ export class Dashboard {
         const get = schema.getParam(searchParams)
 
         switch (endpoint) {
-            case 'loggedin': return await this.loggedIn(get('uuid'))
+            case 'loggedin': return this.loggedIn(get('uuid'))
 
-            case 'googlelogin': return await this.googleLogin(get('googleid'))
+            case 'googlelogin': return this.googleLogin(get('googleid'))
 
-            case 'logout': return await this.logout(get('uuid'))
+            case 'logout': return this.logout(get('uuid'))
 
             case 'gallery': return await this.listGallery(get('uuid'))
 
             case 'deletegallery': return await this.deleteGallery(get('uuid'), get('name'))
 
-            case 'bio': return await this.getBio(get('uuid'))
+            case 'bio': return this.getBio(get('uuid'))
 
-            case 'bankaccount': return await this.bankAccount(get('uuid'), get('page'))
+            case 'bankaccount': return this.bankAccount(get('uuid'), get('page'))
 
-            case 'passwords': return await this.getPasswords(get('uuid'))
+            case 'passwords': return this.getPasswords(get('uuid'))
 
             default: return this.serve404()
         }
@@ -137,17 +137,17 @@ export class Dashboard {
                 return await this.uploadGallery(formData)
             }
 
-            case 'bio': return await this.setBio(schema.bioBody.parse(await req.json()))
+            case 'bio': return this.setBio(schema.bioBody.parse(await req.json()))
 
-            case 'banktransact': return await this.bankTransact(schema.bankTransactBody.parse(await req.json()))
+            case 'banktransact': return this.bankTransact(schema.bankTransactBody.parse(await req.json()))
 
-            case 'setallowance': return await this.setAllowance(schema.setAllowanceBody.parse(await req.json()))
+            case 'setallowance': return this.setAllowance(schema.setAllowanceBody.parse(await req.json()))
 
-            case 'passwords': return await this.upsertPassword(schema.upsertPasswordBody.parse(await req.json()))
+            case 'passwords': return this.upsertPassword(schema.upsertPasswordBody.parse(await req.json()))
 
-            case 'deletepassword': return await this.deletePassword(schema.deletePasswordBody.parse(await req.json()))
+            case 'deletepassword': return this.deletePassword(schema.deletePasswordBody.parse(await req.json()))
 
-            case 'importpasswords': return await this.importPasswords(schema.importBitwardenBody.parse(await req.json()))
+            case 'importpasswords': return this.importPasswords(schema.importBitwardenBody.parse(await req.json()))
 
             default: return this.serve404()
         }
@@ -169,7 +169,7 @@ export class Dashboard {
                     outdir: BUILD_DIR
                 })
                 if (!success) {
-                    throw `build error for ${scriptPath}:\n${logs}`
+                    throw `build error for ${scriptPath}:\n${logs.join('\n')}`
                 }
                 this.scripts.set(scriptName, mtimeMs)
             }
@@ -187,14 +187,14 @@ export class Dashboard {
         return new Response('404 - File not found', { status: 404 })
     }
 
-    async loggedIn(uuid: schema.Uuid) {
+    loggedIn(uuid: schema.Uuid) {
         if (this.db.getUserLoggedIn(uuid)) {
             return new Response()
         }
         return this.serve400('not logged in')
     }
 
-    async googleLogin(googleId: string | null) {
+    googleLogin(googleId: string | null) {
         if (googleId) {
             let body: z.infer<typeof schema.loginResponse>
             const uuid = this.db.getGoogleAccount(googleId)
@@ -232,7 +232,7 @@ export class Dashboard {
         return Response.json(body)
     }
 
-    async logout(uuid: schema.Uuid) {
+    logout(uuid: schema.Uuid) {
         this.db.setUserLogout(uuid)
         return new Response()
     }
@@ -257,7 +257,7 @@ export class Dashboard {
         const uuid = schema.uuid.parse(formData.get('uuid'))
         const dir = `${DATA_DIR}/${uuid}/${GALLERY}` as const
 
-        let files: File[] = []
+        const files: File[] = []
         formData.forEach(file => {
             if (file instanceof File) {
                 files.push(file)
@@ -281,13 +281,13 @@ export class Dashboard {
         return new Response()
     }
 
-    async getBio(uuid: schema.Uuid) {
+    getBio(uuid: schema.Uuid) {
         const result = this.db.getUserBio(uuid)
         const body: z.infer<typeof schema.bioResponse> = { bio: result || null }
         return Response.json(body)
     }
 
-    async setBio({ uuid, bio }: z.infer<typeof schema.bioBody>) {
+    setBio({ uuid, bio }: z.infer<typeof schema.bioBody>) {
         this.db.setUserBio(uuid, bio)
         return new Response()
     }
@@ -297,7 +297,7 @@ export class Dashboard {
         return balance + (days * allowance)
     }
 
-    async bankAccount(uuid: schema.Uuid, page: number) {
+    bankAccount(uuid: schema.Uuid, page: number) {
         const allowance = this.db.getBankAllowance(uuid)
         if (allowance === undefined) {
             return this.serve400('user not found')
@@ -313,7 +313,7 @@ export class Dashboard {
         return Response.json(body)
     }
 
-    async bankTransact({ uuid, amount, adding }: z.infer<typeof schema.bankTransactBody>) {
+    bankTransact({ uuid, amount, adding }: z.infer<typeof schema.bankTransactBody>) {
         if (adding) {
             amount = -amount
         }
@@ -333,22 +333,22 @@ export class Dashboard {
         return Response.json(body)
     }
 
-    async setAllowance({ uuid, allowance }: z.infer<typeof schema.setAllowanceBody>) {
+    setAllowance({ uuid, allowance }: z.infer<typeof schema.setAllowanceBody>) {
         this.db.setAllowance(uuid, allowance)
         return new Response()
     }
 
-    async getPasswords(uuid: schema.Uuid) {
+    getPasswords(uuid: schema.Uuid) {
         const entries = this.db.getPasswords(uuid)
         return Response.json(entries)
     }
 
-    async upsertPassword({ uuid, passwordsEntry }: z.infer<typeof schema.upsertPasswordBody>) {
+    upsertPassword({ uuid, passwordsEntry }: z.infer<typeof schema.upsertPasswordBody>) {
         this.db.upsertPasswords(uuid, [passwordsEntry])
         return new Response()
     }
 
-    async deletePassword({ uuid, entryUuid }: z.infer<typeof schema.deletePasswordBody>) {
+    deletePassword({ uuid, entryUuid }: z.infer<typeof schema.deletePasswordBody>) {
         if (entryUuid) {
             this.db.deletePassword(uuid, entryUuid)
         } else {
@@ -357,7 +357,7 @@ export class Dashboard {
         return new Response()
     }
 
-    async importPasswords({ uuid, bwJson: { items } }: z.infer<typeof schema.importBitwardenBody>) {
+    importPasswords({ uuid, bwJson: { items } }: z.infer<typeof schema.importBitwardenBody>) {
         // translate bitwarden password entries to database password entries
         const entries =
             items
@@ -385,10 +385,6 @@ export class Dashboard {
 
         this.db.upsertPasswords(uuid, entries)
 
-        return new Response()
-    }
-
-    async exportPasswords() {
         return new Response()
     }
 

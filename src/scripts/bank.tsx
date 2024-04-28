@@ -102,7 +102,7 @@ function Input({ uuid, updateError, account, runReload }: InputProps) {
 
     const [amount, setAmount] = useState(0)
     const [inputType, setInputType] = useState<InputType>('unit')
-    const [adding, setAdding] = useState(false);
+    const [adding, setAdding] = useState(false)
 
     const onKeyClick = (label: string | number) => {
         return async () => {

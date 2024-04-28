@@ -9,7 +9,7 @@ import useAsyncEffect from 'use-async-effect'
 import { UpdateErrorContext, type UpdateError } from '../components/error'
 import { ICONS } from '../components/icons'
 import { ShowModalContext, type ShowModal } from '../components/modal'
-import type { z } from 'zod'
+import { z } from 'zod'
 import { v4 as generateUuid } from 'uuid'
 import moment from 'moment'
 
@@ -185,8 +185,8 @@ function Entry({ entry, visible, updateCopied, context }: EntryProps) {
     const entryContext: Context = { ...context, entry }
 
     const onCopy = (copyText: string) => {
-        return (event: MouseEvent) => {
-            navigator.clipboard.writeText(copyText)
+        return async (event: MouseEvent) => {
+            await navigator.clipboard.writeText(copyText)
             updateCopied(event.clientX, event.clientY)
         }
     }
@@ -260,12 +260,17 @@ function Options({ context, entries }: { context: Context, entries: schema.Passw
         if (event.target.files && event.target.files.length > 0) {
             const json = await event.target.files.item(0)?.text()
             if (json) {
-                const body: z.infer<typeof schema.importBitwardenBody> = {
-                    uuid: context.uuid,
-                    bwJson: JSON.parse(json)
-                }
-                if (await schema.apiFetch('importpasswords', { body, updateError: context.updateError })) {
-                    context.runReload()
+                const result = schema.bitwardenOuterFormat.safeParse(json)
+                if (result.success) {
+                    const body: z.infer<typeof schema.importBitwardenBody> = {
+                        uuid: context.uuid,
+                        bwJson: result.data,
+                    }
+                    if (await schema.apiFetch('importpasswords', { body, updateError: context.updateError })) {
+                        context.runReload()
+                    }
+                } else {
+                    context.updateError('invalid JSON file')
                 }
             } else {
                 context.updateError('invalid JSON file')
@@ -439,17 +444,17 @@ function Upsert({ context: { uuid, entry, updateError, showModal, entriesUpdate:
     )
 }
 
-function ConfirmDelete({ context: { uuid, entry, updateError, showModal, entriesUpdate: passwordsUpdate } }: { context: Context }) {
-    const onConfirmDeleteClick = async (event: FormEvent) => {
+function ConfirmDelete({ context: { uuid, entry, updateError, showModal, entriesUpdate } }: { context: Context }) {
+    const onConfirmDeleteClick = async () => {
         const body: z.infer<typeof schema.deletePasswordBody> = {
             uuid,
             entryUuid: entry?.entryUuid ?? null,
         }
         if (await schema.apiFetch('deletepassword', { body, updateError })) {
             if (entry) {
-                passwordsUpdate({ type: 'remove', entryUuid: entry.entryUuid })
+                entriesUpdate({ type: 'remove', entryUuid: entry.entryUuid })
             } else {
-                passwordsUpdate({ type: 'assign', entries: [] })
+                entriesUpdate({ type: 'assign', entries: [] })
             }
             showModal()
         }

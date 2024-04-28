@@ -5,6 +5,7 @@ persist/
 dashboard
 deploy.sh
 stop.sh
+eslint.config.js
 
 ### BUN IGNORES ###
 

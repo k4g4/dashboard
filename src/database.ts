@@ -161,7 +161,9 @@ export class Db {
 
     upsertPasswords(uuid: schema.Uuid, entries: schema.PasswordsEntry[]) {
         this.db.transaction(() => {
-            for (let { entryUuid, siteUrl, siteName, username, password, favorite } of entries) {
+            for (const entry of entries) {
+                const { entryUuid, favorite } = entry
+                let { siteUrl, siteName, username, password } = entry
                 siteUrl = siteUrl?.replaceAll('\'', '\'\'') ?? ''
                 siteName = siteName.replaceAll('\'', '\'\'')
                 username = username.replaceAll('\'', '\'\'')

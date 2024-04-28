@@ -3,7 +3,7 @@ import { Page, UuidContext } from '../components/page'
 import {
     Fragment,
     useContext, useRef, useState, type ChangeEvent, type Dispatch,
-    type FormEvent, type MouseEvent, type SetStateAction
+    type FormEvent, type SetStateAction
 } from 'react'
 import { useAsyncEffect } from 'use-async-effect'
 import * as schema from '../api_schema'
