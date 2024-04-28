@@ -71,6 +71,16 @@ export type PasswordsEntry = z.infer<typeof passwordsEntry>
 
 export const getPasswordsResponse = z.array(passwordsEntry)
 
+export const upsertPasswordBody = z.object({
+    uuid,
+    passwordsEntry,
+})
+
+export const deletePasswordBody = z.object({
+    uuid,
+    entryUuid: uuid.nullable(),
+})
+
 export const bitwardenPasswordItem = z.object({
     id: uuid,
     object: z.literal('item'),
@@ -89,7 +99,9 @@ export const bitwardenPasswordItem = z.object({
 
 export const importBitwardenBody = z.object({
     uuid,
-    items: z.array(z.unknown()),
+    bwJson: z.object({
+        items: z.array(z.unknown()),
+    }),
 })
 
 const endpoints = [
@@ -104,6 +116,7 @@ const endpoints = [
     'bankaccount',
     'setallowance',
     'passwords',
+    'deletepassword',
     'importpasswords',
     'exportpasswords',
 ] as const

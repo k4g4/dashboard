@@ -129,8 +129,7 @@ export class Db {
     }
 
     setAllowance(uuid: schema.Uuid, allowance: number) {
-        const query = `UPDATE user SET allowance = ${allowance} WHERE userUuid = '${uuid}'`
-        this.db.exec(query)
+        this.db.exec(`UPDATE user SET allowance = ${allowance} WHERE userUuid = '${uuid}'`)
     }
 
     getPasswords(uuid: schema.Uuid) {
@@ -177,5 +176,13 @@ export class Db {
                 this.db.exec(query)
             }
         })()
+    }
+
+    deletePassword(uuid: schema.Uuid, entryUuid: schema.Uuid) {
+        this.db.exec(`DELETE FROM password WHERE passUuid = '${entryUuid}' AND userUuid = '${uuid}'`)
+    }
+
+    deleteAllPasswords(uuid: schema.Uuid) {
+        this.db.exec(`DELETE FROM password WHERE userUuid = '${uuid}'`)
     }
 }

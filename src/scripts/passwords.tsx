@@ -9,6 +9,8 @@ import useAsyncEffect from 'use-async-effect'
 import { UpdateErrorContext, type UpdateError } from '../components/error'
 import { ICONS } from '../components/icons'
 import { ShowModalContext, type ShowModal } from '../components/modal'
+import type { z } from 'zod'
+import { v4 as generateUuid } from 'uuid'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <Page pageName='passwords'>
@@ -48,9 +50,9 @@ function updatePasswords(passwords: schema.PasswordsEntry[], update: Update): sc
 }
 
 // this is just to manage prop-drilling
-type ModalData = {
+type Context = {
     uuid: schema.Uuid,
-    entryUuid: schema.Uuid | null,
+    entry: schema.PasswordsEntry | null,
     updateError: UpdateError,
     showModal: ShowModal,
     runReload: () => void,
@@ -70,9 +72,9 @@ function Passwords() {
     const [reload, setReload] = useState(false)
     const runReload = () => setReload(reload => !reload)
 
-    const modalData: ModalData = {
+    const context: Context = {
         uuid,
-        entryUuid: null,
+        entry: null,
         updateError,
         showModal,
         runReload,
@@ -122,7 +124,7 @@ function Passwords() {
                 entry={entry}
                 visible={visible}
                 updateCopied={updateCopied}
-                modalData={modalData}
+                context={context}
             />
         ))
     }
@@ -151,7 +153,7 @@ function Passwords() {
                     :
                     <></>
             }
-            <Options modalData={modalData} />
+            <Options context={context} />
             <div className='copied-banner drop-shadow' ref={copiedBanner}>
                 <h3>Copied!</h3>
             </div>
@@ -163,17 +165,23 @@ type EntryProps = {
     entry: schema.PasswordsEntry,
     visible: boolean,
     updateCopied: (x: number, y: number) => void,
-    modalData: ModalData,
+    context: Context,
 }
-function Entry({ entry, visible, updateCopied, modalData }: EntryProps) {
+function Entry({ entry, visible, updateCopied, context }: EntryProps) {
     const { entryUuid, siteName, siteUrl, favorite, username, password } = entry
     const hiddenPassword = visible ? password : '•'.repeat(password.length)
 
-    const entryModalData: ModalData = { ...modalData, entryUuid }
-
-    const onFavToggle = () => {
-        entryModalData.passwordsUpdate({ type: 'togglefav', entryUuid })
+    const onFavToggle = async () => {
+        const body: z.infer<typeof schema.upsertPasswordBody> = {
+            uuid: context.uuid,
+            passwordsEntry: { ...entry, favorite: !entry.favorite },
+        }
+        if (await schema.apiFetch('passwords', { body, updateError: context.updateError })) {
+            context.passwordsUpdate({ type: 'togglefav', entryUuid })
+        }
     }
+
+    const entryContext: Context = { ...context, entry }
 
     const onCopy = (copyText: string) => {
         return (event: MouseEvent) => {
@@ -202,7 +210,7 @@ function Entry({ entry, visible, updateCopied, modalData }: EntryProps) {
 
             <div className='passwords-entry-contents'>
                 <div className='passwords-entry-site'>
-                    {siteName}{siteUrl && ` - ${siteUrl}`}
+                    {siteName}{siteName && siteUrl && ' - '}{siteUrl}
                 </div>
                 <div className='passwords-entry-credentials'>
                     <div
@@ -227,14 +235,14 @@ function Entry({ entry, visible, updateCopied, modalData }: EntryProps) {
                 <button
                     className='icon-button passwords-entry-button'
                     title='Edit'
-                    onClick={() => entryModalData.showModal(<Upsert modalData={entryModalData} />)}
+                    onClick={() => entryContext.showModal(<Upsert context={entryContext} />)}
                 >
                     {ICONS.EDIT}
                 </button>
                 <button
                     className='icon-button passwords-entry-button passwords-entry-delete-button'
                     title='Delete'
-                    onClick={() => entryModalData.showModal(<ConfirmDelete siteName={siteName} modalData={entryModalData} />)}
+                    onClick={() => entryContext.showModal(<ConfirmDelete context={entryContext} />)}
                 >
                     {ICONS.XMARK}
                 </button>
@@ -243,49 +251,86 @@ function Entry({ entry, visible, updateCopied, modalData }: EntryProps) {
     )
 }
 
-function Options({ modalData }: { modalData: ModalData }) {
+function Options({ context }: { context: Context }) {
+    const uploader = useRef<HTMLInputElement>(null)
+
+    const onImport = async (event: ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files.length > 0) {
+            const json = await event.target.files.item(0)?.text()
+            if (json) {
+                const body: z.infer<typeof schema.importBitwardenBody> = {
+                    uuid: context.uuid,
+                    bwJson: JSON.parse(json)
+                }
+                if (await schema.apiFetch('importpasswords', { body, updateError: context.updateError })) {
+                    context.runReload()
+                }
+            } else {
+                context.updateError('invalid JSON file')
+            }
+        } else {
+            context.updateError('no file provided')
+        }
+    }
+
+    const onExport = () => {
+
+    }
+
     return (
         <div className='passwords-options'>
             <button
                 className='button'
-                onClick={() => modalData.showModal(<Upsert modalData={modalData} />)}
+                onClick={() => context.showModal(<Upsert context={context} />)}
             >
                 Add
             </button>
-            <button
-                className='button'
-            >
+            <input type='file' accept='.json' onChange={onImport} ref={uploader} />
+            <button className='button' onClick={() => uploader.current?.click()}>
                 Import
             </button>
-            <button
-                className='button'
-            >
+            <button className='button' onClick={onExport}>
                 Export
+            </button>
+            <button
+                className='button danger-button'
+                onClick={() => context.showModal(<ConfirmDelete context={context} />)}
+            >
+                Delete All
             </button>
         </div>
     )
 }
 
-function Upsert({ modalData: { uuid, entryUuid, updateError, showModal, passwordsUpdate } }: { modalData: ModalData }) {
-    const fields: { field: string, valueState: [string, Dispatch<SetStateAction<string>>], hide: boolean }[] = [
+function Upsert({ context: { uuid, entry, updateError, showModal, passwordsUpdate } }: { context: Context }) {
+    const [siteName, setSiteName] = useState(entry?.siteName ?? '')
+    const [siteUrl, setSiteUrl] = useState(entry?.siteUrl ?? '')
+    const [username, setUsername] = useState(entry?.username ?? '')
+    const [password, setPassword] = useState(entry?.password ?? '')
+    const [favorite, setFavorite] = useState(entry?.favorite ?? false)
+    const fields: { field: string, value: string, setValue: Dispatch<SetStateAction<string>>, hide: boolean }[] = [
         {
             field: 'Website Name',
-            valueState: useState(''),
+            value: siteName,
+            setValue: setSiteName,
             hide: false,
         },
         {
             field: 'Website URL',
-            valueState: useState(''),
+            value: siteUrl,
+            setValue: setSiteUrl,
             hide: false,
         },
         {
             field: 'Username',
-            valueState: useState(''),
+            value: username,
+            setValue: setUsername,
             hide: false,
         },
         {
             field: 'Password',
-            valueState: useState(''),
+            value: password,
+            setValue: setPassword,
             hide: true,
         },
     ]
@@ -298,15 +343,37 @@ function Upsert({ modalData: { uuid, entryUuid, updateError, showModal, password
 
     const onUpsertSubmit = async (event: FormEvent) => {
         event.preventDefault()
+
+        const upsertEntry: schema.PasswordsEntry = {
+            entryUuid: entry?.entryUuid ?? schema.uuid.parse(generateUuid()),
+            favorite,
+            siteName,
+            siteUrl,
+            username,
+            password,
+        }
+        const body: z.infer<typeof schema.upsertPasswordBody> = {
+            uuid,
+            passwordsEntry: upsertEntry,
+        }
+        if (await schema.apiFetch('passwords', { body, updateError })) {
+            passwordsUpdate(entry ? { type: 'edit', editedEntry: upsertEntry } : { type: 'add', newEntry: upsertEntry })
+            showModal()
+        }
+    }
+
+    const onFavClick = (event: MouseEvent) => {
+        event.preventDefault()
+        setFavorite(favorite => !favorite)
     }
 
     return (
         <form onSubmit={onUpsertSubmit}>
             <div className='passwords-modal'>
-                <h1>{entryUuid ? 'Edit Entry' : 'Add New Entry'}</h1>
+                <h1>{entry ? 'Edit Entry' : 'Add New Entry'}</h1>
                 <div className='modal-fields'>
                     {
-                        fields.map(({ field, valueState: [value, setValue], hide }) => {
+                        fields.map(({ field, value, setValue, hide }) => {
                             return (
                                 <Fragment key={field}>
                                     <label>{field}</label>
@@ -320,37 +387,44 @@ function Upsert({ modalData: { uuid, entryUuid, updateError, showModal, password
                             )
                         })
                     }
+                    {
+                        entry ?
+                            <></>
+                            :
+                            <>
+                                <label>Favorite</label>
+                                <button className={`modal-field-fav ${favorite ? 'faved' : ''}`} onClick={onFavClick} />
+                            </>
+                    }
                 </div>
-                <input type='submit' className='button submit-button' value={entryUuid ? 'Edit' : 'Add'} />
+                <input type='submit' className='button submit-button' value={entry ? 'Edit' : 'Add'} />
             </div>
         </form>
     )
 }
 
-function ConfirmDelete(
-    {
-        siteName,
-        modalData: { uuid, entryUuid, updateError, showModal, passwordsUpdate },
-    }: { siteName: string, modalData: ModalData }
-) {
+function ConfirmDelete({ context: { uuid, entry, updateError, showModal, passwordsUpdate } }: { context: Context }) {
     const onConfirmDeleteClick = async (event: FormEvent) => {
-        event.preventDefault()
+        const body: z.infer<typeof schema.deletePasswordBody> = {
+            uuid,
+            entryUuid: entry?.entryUuid ?? null,
+        }
+        if (await schema.apiFetch('deletepassword', { body, updateError })) {
+            if (entry) {
+                passwordsUpdate({ type: 'remove', entryUuid: entry.entryUuid })
+            } else {
+                passwordsUpdate({ type: 'assign', entries: [] })
+            }
+            showModal()
+        }
     }
 
     return (
         <div className='passwords-modal'>
-            <h1>Delete entry for '{siteName}'?</h1>
-            <button className='button submit-button' onClick={onConfirmDeleteClick}>
+            <h1>{entry ? `Delete entry for '${entry.siteName}'?` : 'Delete all entries?'}</h1>
+            <button className='button submit-button danger-button' onClick={onConfirmDeleteClick}>
                 Confirm
             </button>
         </div>
     )
-}
-
-function Import({ runReload }: { runReload: () => void }) {
-
-}
-
-function Export() {
-
 }

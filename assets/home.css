@@ -9,11 +9,6 @@
 
 .delete-button {
     margin-bottom: 10px;
-    background-color: var(--warning);
-}
-
-.delete-button:hover {
-    background-color: var(--warning-dark);
 }
 
 .delete-button svg {

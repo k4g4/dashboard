@@ -143,6 +143,10 @@ export class Dashboard {
 
             case 'setallowance': return await this.setAllowance(schema.setAllowanceBody.parse(await req.json()))
 
+            case 'passwords': return await this.upsertPassword(schema.upsertPasswordBody.parse(await req.json()))
+
+            case 'deletepassword': return await this.deletePassword(schema.deletePasswordBody.parse(await req.json()))
+
             case 'importpasswords': return await this.importPasswords(schema.importBitwardenBody.parse(await req.json()))
 
             case 'exportpasswords': return await this.exportPasswords()
@@ -341,7 +345,21 @@ export class Dashboard {
         return Response.json(entries)
     }
 
-    async importPasswords({ uuid, items }: z.infer<typeof schema.importBitwardenBody>) {
+    async upsertPassword({ uuid, passwordsEntry }: z.infer<typeof schema.upsertPasswordBody>) {
+        this.db.upsertPasswords(uuid, [passwordsEntry])
+        return new Response()
+    }
+
+    async deletePassword({ uuid, entryUuid }: z.infer<typeof schema.deletePasswordBody>) {
+        if (entryUuid) {
+            this.db.deletePassword(uuid, entryUuid)
+        } else {
+            this.db.deleteAllPasswords(uuid)
+        }
+        return new Response()
+    }
+
+    async importPasswords({ uuid, bwJson: { items } }: z.infer<typeof schema.importBitwardenBody>) {
         // translate bitwarden password entries to database password entries
         const entries =
             items

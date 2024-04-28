@@ -124,29 +124,21 @@ function Gallery() {
     const imageIndexCaption = images.length ? `Image ${imageIndex + 1} / ${images.length}` : ''
 
     // looks hacky, but this is what mozilla recommends!
-    const onUpload = (event: MouseEvent<HTMLButtonElement>) => {
-        if (uploader.current) {
-            uploader.current.addEventListener('change', async function () {
-                if (uploader.current) {
-                    let body = new FormData()
-                    body.append('uuid', uuid)
-                    if (uploader.current.files) {
-                        const max = uploader.current.files.length < 8 ? uploader.current.files.length : 8
-                        for (let i = 0; i < max; i++) {
-                            body.append(`image_${i}`, uploader.current.files[i])
-                        }
-                    } else {
-                        updateError('no files provided')
-                    }
+    const onUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+        const body = new FormData()
+        body.append('uuid', uuid)
+        if (event.target.files) {
+            const max = event.target.files.length < 8 ? event.target.files.length : 8
+            for (let i = 0; i < max; i++) {
+                body.append(`image_${i}`, event.target.files[i])
+            }
+        } else {
+            updateError('no files provided')
+        }
 
-                    if (await schema.apiFetch('gallery', { body, updateError })) {
-                        setImageIndex(0)
-                        setReload(reload => !reload)
-                    }
-                }
-            })
-
-            uploader.current.click()
+        if (await schema.apiFetch('gallery', { body, updateError })) {
+            setImageIndex(0)
+            setReload(reload => !reload)
         }
     }
 
@@ -166,11 +158,11 @@ function Gallery() {
         <div className='section gallery'>
             <h1>Gallery</h1>
             <div className='section-header gallery-header'>
-                <input type='file' accept='image/*' multiple ref={uploader} />
-                <button className='icon-button upload-button' onClick={onUpload} title='Upload'>
+                <input type='file' accept='image/*' multiple onChange={onUpload} ref={uploader} />
+                <button className='icon-button upload-button' onClick={() => uploader.current?.click()} title='Upload'>
                     {ICONS.UPLOAD}
                 </button>
-                <button className='icon-button delete-button' onClick={onDelete} title='Delete'>
+                <button className='icon-button delete-button danger-button' onClick={onDelete} title='Delete'>
                     {ICONS.XMARK}
                 </button>
             </div>

@@ -277,6 +277,14 @@ nav .logout-icon {
     width: fit-content;
 }
 
+.danger-button {
+    background-color: var(--warning) !important;
+}
+
+.danger-button:hover {
+    background-color: var(--warning-dark) !important;
+}
+
 .icon-button {
     background-color: var(--dark-purp);
     color: var(--egg-white);
