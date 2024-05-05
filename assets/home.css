@@ -16,10 +16,6 @@
     padding-top: 2px;
 }
 
-input[type="file"] {
-    display: none;
-}
-
 .viewer {
     display: flex;
     align-items: center;

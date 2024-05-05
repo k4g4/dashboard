@@ -158,7 +158,7 @@ function Gallery() {
         <div className='section gallery'>
             <h1>Gallery</h1>
             <div className='section-header gallery-header'>
-                <input type='file' accept='image/*' multiple onChange={onUpload} ref={uploader} />
+                <input type='file' accept='image/*' multiple onChange={onUpload} ref={uploader} hidden />
                 <button className='icon-button upload-button' onClick={() => uploader.current?.click()} title='Upload'>
                     {ICONS.UPLOAD}
                 </button>

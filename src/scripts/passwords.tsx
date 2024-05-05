@@ -102,6 +102,7 @@ function Passwords() {
     const copiedBanner = useRef<HTMLDivElement>(null)
     const [copiedTimer, setCopiedTimer] = useState<Timer>()
 
+    // show 'Copied' banner next to cursor
     const updateCopied = (x: number, y: number) => {
         if (copiedBanner.current) {
             copiedBanner.current.style.left = `${x + 12}px`
