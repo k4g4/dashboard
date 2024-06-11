@@ -171,6 +171,7 @@ type EntryProps = {
 }
 function Entry({ entry, visible, updateCopied, context }: EntryProps) {
     const { entryUuid, siteName, siteUrl, favorite, username, password } = entry
+    const fixedSiteUrl = siteUrl && (siteUrl.startsWith('http://') ? siteUrl : `http://${siteUrl}`)
     const hiddenPassword = visible ? password : '•'.repeat(password.length)
 
     const onFavToggle = async () => {
@@ -212,7 +213,12 @@ function Entry({ entry, visible, updateCopied, context }: EntryProps) {
 
             <div className='passwords-entry-contents'>
                 <div className='passwords-entry-site'>
-                    {siteName}{siteName && siteUrl && ' - '}{siteUrl}
+                    {siteName}
+                    {siteName && siteUrl && ' - '}
+                    {
+                        fixedSiteUrl &&
+                        <a className='passwords-entry-link' href={fixedSiteUrl} target='_blank'>{siteUrl}</a>
+                    }
                 </div>
                 <div className='passwords-entry-credentials'>
                     <div
