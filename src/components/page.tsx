@@ -7,12 +7,10 @@ import * as schema from '../api_schema'
 import useAsyncEffect from 'use-async-effect'
 import { ModalProvider } from './modal'
 
-export type PageName = 'home' | 'bank' | 'passwords' | 'shopping'
-
 export const UuidContext = createContext(NIL as schema.Uuid)
 export const STORAGE_UUID_KEY = 'uuid'
 
-export function Page({ children, pageName }: PropsWithChildren<{ pageName: PageName }>) {
+export function Page({ children, pageName }: PropsWithChildren<{ pageName: schema.PageName }>) {
     const storageResult = schema.uuid.safeParse(localStorage.getItem(STORAGE_UUID_KEY))
     const [uuid, setUuid] = useState(storageResult.success ? storageResult.data : null)
     const [dim, setDim] = useState(false)

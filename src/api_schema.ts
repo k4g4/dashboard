@@ -1,11 +1,15 @@
 import { z } from 'zod'
 import type { UpdateError } from './components/error'
 
+const pageNames = ['home', 'bank', 'passwords', 'weather', 'shopping'] as const
+export const PAGE_NAMES = pageNames as readonly string[]
+export type PageName = typeof pageNames[number]
+
 export const apiError = z.object({
     error: z.string(),
 })
 
-export const uuid = z.string().uuid().brand<"Uuid">()
+export const uuid = z.string().uuid().brand<'Uuid'>()
 export type Uuid = z.infer<typeof uuid>
 
 export const MAX_USERNAME_LEN = 20
@@ -129,7 +133,7 @@ export function isEndpoint(endpoint: string): endpoint is Endpoint {
 }
 
 const params = {
-    googleid: z.string(),
+    googleid: z.number(),
     uuid,
     name: z.string(),
     page: z.number(),

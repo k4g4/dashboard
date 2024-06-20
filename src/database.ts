@@ -28,7 +28,7 @@ export class Db {
         })()
     }
 
-    getGoogleAccount(googleId: string) {
+    getGoogleAccount(googleId: number) {
         const query = `SELECT userUuid FROM googleAccount WHERE googleId = '${googleId}'`
         const result = this.db.query(query).get() as { userUuid: string } | null
         if (result) {
@@ -41,7 +41,7 @@ export class Db {
         return null
     }
 
-    newGoogleAccount(googleId: string) {
+    newGoogleAccount(googleId: number) {
         const uuid = schema.uuid.parse(generateUuid())
         this.db.transaction(() => {
             this.db.exec(`INSERT INTO googleAccount(googleId, userUuid) VALUES ('${googleId}', '${uuid}')`)

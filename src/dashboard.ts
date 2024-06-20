@@ -13,6 +13,7 @@ const DEVELOPMENT = Bun.env.DEVELOPMENT === 'true'
 const TIMEZONE = Bun.env.TIMEZONE ?? 'UTC'
 
 const TEMPLATE = include('pages/template.htm')
+const ASSET_EXTS = ['.ico', '.png', '.css', '.jpg', '.json']
 const NAME_FIELD = '{NAME}'
 const DEV_FIELD = '{DEVELOPMENT}'
 const SRC_DIR = 'src'
@@ -87,13 +88,15 @@ export class Dashboard {
                 return new Response(Bun.file(dataPath))
             }
 
-            if (['.ico', '.png', '.css', '.jpg', '.json'].some(ext => pathname.endsWith(ext))) {
+            if (ASSET_EXTS.some(ext => pathname.endsWith(ext))) {
                 return new Response(Bun.file(`${ASSETS_DIR}${pathname}`))
             }
 
             const pageName = pathname.replace('/', '').replace('.html', '').replace('.htm', '') || 'home'
-            const page = TEMPLATE.replaceAll(NAME_FIELD, pageName).replaceAll(DEV_FIELD, DEVELOPMENT.toString())
-            return new Response(page, { headers: { 'content-type': 'text/html' } })
+            if (schema.PAGE_NAMES.includes(pageName)) {
+                const page = TEMPLATE.replaceAll(NAME_FIELD, pageName).replaceAll(DEV_FIELD, DEVELOPMENT.toString())
+                return new Response(page, { headers: { 'content-type': 'text/html' } })
+            }
         }
 
         return this.serve404()
@@ -194,7 +197,7 @@ export class Dashboard {
         return this.serve400('not logged in')
     }
 
-    googleLogin(googleId: string | null) {
+    googleLogin(googleId: number | null) {
         if (googleId) {
             let body: z.infer<typeof schema.loginResponse>
             const uuid = this.db.getGoogleAccount(googleId)
