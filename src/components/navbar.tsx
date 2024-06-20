@@ -1,12 +1,12 @@
 import { useContext, useEffect, useState, type Dispatch, type PropsWithChildren, type SetStateAction } from 'react'
-import { STORAGE_UUID_KEY, UuidContext, type PageName } from './page'
+import { STORAGE_UUID_KEY, UuidContext } from './page'
 import * as schema from '../api_schema'
 import { ICONS } from './icons'
 import { UpdateErrorContext } from './error'
 
 type MenuState = 'show' | 'hide' | 'init'
 
-export function Navbar({ pageName, setDim }: { pageName: PageName, setDim: Dispatch<SetStateAction<boolean>> }) {
+export function Navbar({ pageName, setDim }: { pageName: schema.PageName, setDim: Dispatch<SetStateAction<boolean>> }) {
     const [menuState, setMenuState] = useState<MenuState>('init')
 
     useEffect(() => setDim(menuState === 'show'), [menuState])
@@ -14,7 +14,8 @@ export function Navbar({ pageName, setDim }: { pageName: PageName, setDim: Dispa
     const navItems = (underline: boolean) => [
         <NavItem key={0} href='bank' label='Bank' selected={pageName === 'bank'} underline={underline} />,
         <NavItem key={1} href='passwords' label='Passwords' selected={pageName === 'passwords'} underline={underline} />,
-        <NavItem key={2} href='shopping' label='Shopping List' selected={pageName === 'shopping'} underline={underline} />,
+        <NavItem key={2} href='weather' label='Weather' selected={pageName === 'weather'} underline={underline} />,
+        <NavItem key={3} href='shopping' label='Shopping List' selected={pageName === 'shopping'} underline={underline} />,
     ]
 
     return (
