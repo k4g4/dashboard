@@ -87,7 +87,7 @@ export class Dashboard {
                 return new Response(Bun.file(dataPath))
             }
 
-            if (['.ico', '.png', '.css', '.jpg'].some(ext => pathname.endsWith(ext))) {
+            if (['.ico', '.png', '.css', '.jpg', '.json'].some(ext => pathname.endsWith(ext))) {
                 return new Response(Bun.file(`${ASSETS_DIR}${pathname}`))
             }
 
