@@ -2,5 +2,6 @@
     "name": "Dashboard",
     "short_name": "Dashboard",
     "start_url": ".",
-    "display": "standalone"
+    "display": "standalone",
+    "background_color": "#202022"
 }
