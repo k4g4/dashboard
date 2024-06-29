@@ -110,6 +110,17 @@ export const importBitwardenBody = z.object({
     bwJson: bitwardenOuterFormat,
 })
 
+export const shoppingItem = z.object({
+    itemUuid: uuid,
+    name: z.string(),
+    imageUrl: z.string(),
+    itemUrl: z.string(),
+    description: z.string(),
+})
+export type ShoppingItem = z.infer<typeof shoppingItem>
+
+export const shoppingListResponse = z.array(shoppingItem)
+
 const endpoints = [
     'loggedin',
     'googlelogin',
@@ -124,6 +135,7 @@ const endpoints = [
     'passwords',
     'deletepassword',
     'importpasswords',
+    'shoppinglist',
 ] as const
 
 export type Endpoint = typeof endpoints[number]

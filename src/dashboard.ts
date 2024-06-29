@@ -122,6 +122,8 @@ export class Dashboard {
 
             case 'passwords': return this.getPasswords(get('uuid'))
 
+            case 'shoppinglist': return this.getShoppingList(get('uuid'))
+
             default: return this.serve404()
         }
     }
@@ -342,7 +344,7 @@ export class Dashboard {
     }
 
     getPasswords(uuid: schema.Uuid) {
-        const entries = this.db.getPasswords(uuid)
+        const entries: schema.PasswordsEntry[] = this.db.getPasswords(uuid)
         return Response.json(entries)
     }
 
@@ -389,6 +391,11 @@ export class Dashboard {
         this.db.upsertPasswords(uuid, entries)
 
         return new Response()
+    }
+
+    getShoppingList(uuid: schema.Uuid) {
+        const items: schema.ShoppingItem[] = this.db.getShoppingList(uuid)
+        return Response.json(items)
     }
 
     serve() {

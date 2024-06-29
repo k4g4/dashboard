@@ -187,4 +187,13 @@ export class Db {
     deleteAllPasswords(uuid: schema.Uuid) {
         this.db.exec(`DELETE FROM password WHERE userUuid = '${uuid}'`)
     }
+
+    getShoppingList(uuid: schema.Uuid) {
+        const query = (
+            'SELECT itemUuid, name, imageUrl, itemUrl, description FROM shopping ' +
+            `WHERE userUuid = '${uuid}'`
+        )
+        const results = this.db.query(query).all() as schema.ShoppingItem[] | null
+        return results ?? []
+    }
 }

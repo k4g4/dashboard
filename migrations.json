@@ -26,5 +26,9 @@
     [
         "CREATE TABLE password(passUuid CHARACTER(36) PRIMARY KEY, userUuid CHARACTER(36) REFERENCES user(userUuid), siteUrl TEXT, siteName TEXT, username TEXT, password TEXT, favorite INT);",
         "CREATE INDEX passwordGetAllForUser ON password(userUuid, siteName);"
+    ],
+    [
+        "CREATE TABLE shopping(itemUuid CHARACTER(36) PRIMARY KEY, userUuid CHARACTER(36) REFERENCES user(userUuid), name TEXT, imageUrl TEXT, itemUrl TEXT, description TEXT);",
+        "CREATE INDEX shoppingGetAllForUser ON shopping(userUuid);"
     ]
 ]
