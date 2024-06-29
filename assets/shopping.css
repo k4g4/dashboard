@@ -1,1 +1,45 @@
-.shopping-item {}
+.new-item-form {
+    display: flex;
+    gap: 20px;
+}
+
+.new-item-field {
+    padding-left: 10px;
+    border-radius: 5px;
+    font-size: 20px;
+}
+
+.shopping-list {
+    padding-inline-start: 0px;
+    list-style-type: none;
+}
+
+.shopping-item {
+    background-color: var(--near-black);
+    padding: 20px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    max-height: 120px;
+}
+
+.shopping-item-detail {
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+}
+
+.shopping-item-name {
+    font-size: 26px;
+}
+
+.shopping-item-desc {
+    font-size: 14px;
+    overflow: scroll;
+}
+
+.shopping-item-remove {
+    min-width: 35px;
+    min-height: 35px;
+}
