@@ -121,6 +121,14 @@ export type ShoppingItem = z.infer<typeof shoppingItem>
 
 export const shoppingListResponse = z.array(shoppingItem)
 
+export const newShoppingItemBody = z.object({
+    uuid,
+    name: z.string(),
+    imageUrl: z.string(),
+    itemUrl: z.string(),
+    description: z.string(),
+})
+
 const endpoints = [
     'loggedin',
     'googlelogin',

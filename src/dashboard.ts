@@ -154,6 +154,8 @@ export class Dashboard {
 
             case 'importpasswords': return this.importPasswords(schema.importBitwardenBody.parse(await req.json()))
 
+            case 'shoppinglist': return this.newShoppingItem(schema.newShoppingItemBody.parse(await req.json()))
+
             default: return this.serve404()
         }
     }
@@ -396,6 +398,11 @@ export class Dashboard {
     getShoppingList(uuid: schema.Uuid) {
         const items: schema.ShoppingItem[] = this.db.getShoppingList(uuid)
         return Response.json(items)
+    }
+
+    newShoppingItem({ uuid, name, imageUrl, itemUrl, description }: z.infer<typeof schema.newShoppingItemBody>) {
+        this.db.newShoppingItem(uuid, name, imageUrl, itemUrl, description)
+        return new Response()
     }
 
     serve() {

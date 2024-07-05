@@ -196,4 +196,17 @@ export class Db {
         const results = this.db.query(query).all() as schema.ShoppingItem[] | null
         return results ?? []
     }
+
+    newShoppingItem(uuid: schema.Uuid, name: string, imageUrl: string, itemUrl: string, description: string) {
+        const itemUuid = schema.uuid.parse(generateUuid())
+        name = name.replaceAll('\'', '\'\'')
+        imageUrl = imageUrl.replaceAll('\'', '\'\'')
+        itemUrl = itemUrl.replaceAll('\'', '\'\'')
+        description = description.replaceAll('\'', '\'\'')
+        const query = (
+            'INSERT INTO shopping(itemUuid, userUuid, name, imageUrl, itemUrl, description) ' +
+            `VALUES ('${itemUuid}', '${uuid}', '${name}' ,'${imageUrl}', '${itemUrl}', '${description}') `
+        )
+        this.db.exec(query)
+    }
 }

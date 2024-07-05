@@ -6,6 +6,8 @@ import useAsyncEffect from 'use-async-effect'
 import { UpdateErrorContext, type UpdateError } from '../components/error'
 import { ShowModalContext } from '../components/modal'
 import { ICONS } from '../components/icons'
+import { env } from '../env_macro' with { type: 'macro' }
+import { z } from 'zod'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <Page pageName='shopping'>
@@ -16,7 +18,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 function List() {
     const uuid = useContext(UuidContext)
     const updateError = useContext(UpdateErrorContext)
-    const showModal = useContext(ShowModalContext)
 
     const [list, setList] = useState<schema.ShoppingItem[]>([])
     const [newItem, setNewItem] = useState('')
@@ -38,6 +39,29 @@ function List() {
 
     const onNewItemSubmit = async (event: FormEvent) => {
         event.preventDefault()
+
+        const [searchCx, searchKey] = [env('CUSTOM_SEARCH_CX'), env('CUSTOM_SEARCH_KEY')]
+        const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${searchKey}&cx=${searchCx}&q=${newItem}`)
+        if (res.status !== 200) {
+            updateError('failed to fetch Google search data')
+            return
+        }
+        const resJson = await res.json()
+        if (!resJson.items.length) {
+            updateError(`no results found for '${newItem}'`)
+            return
+        }
+        const item = resJson.items[0]
+        const body: z.infer<typeof schema.newShoppingItemBody> = {
+            uuid,
+            name: newItem,
+            imageUrl: item.pagemap.metatags[0]['og:image'],
+            itemUrl: item.link,
+            description: item.title,
+        }
+        await schema.apiFetch('shoppinglist', { body, updateError })
+
+        runReload()
     }
 
     return (
