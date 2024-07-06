@@ -40,28 +40,37 @@ function List() {
     const onNewItemSubmit = async (event: FormEvent) => {
         event.preventDefault()
 
-        const [searchCx, searchKey] = [env('CUSTOM_SEARCH_CX'), env('CUSTOM_SEARCH_KEY')]
-        const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${searchKey}&cx=${searchCx}&q=${newItem}`)
+        const customSearch = new URL('https://www.googleapis.com/customsearch/v1')
+        customSearch.searchParams.append('key', env('CUSTOM_SEARCH_KEY'))
+        customSearch.searchParams.append('cx', env('CUSTOM_SEARCH_CX'))
+        customSearch.searchParams.append('q', newItem)
+
+        const res = await fetch(customSearch)
         if (res.status !== 200) {
             updateError('failed to fetch Google search data')
             return
         }
         const resJson = await res.json()
-        if (!resJson.items.length) {
+        if (!resJson.items || !resJson.items.length) {
             updateError(`no results found for '${newItem}'`)
             return
         }
-        const item = resJson.items[0]
-        const body: z.infer<typeof schema.newShoppingItemBody> = {
-            uuid,
-            name: newItem,
-            imageUrl: item.pagemap.metatags[0]['og:image'],
-            itemUrl: item.link,
-            description: item.title,
-        }
-        await schema.apiFetch('shoppinglist', { body, updateError })
+        try {
+            const item = resJson.items[0]
+            const body: z.infer<typeof schema.newShoppingItemBody> = {
+                uuid,
+                name: newItem,
+                imageUrl: item.pagemap.cse_thumbnail[0].src,
+                itemUrl: item.link,
+                description: item.title,
+            }
+            await schema.apiFetch('shoppinglist', { body, updateError })
 
-        runReload()
+            runReload()
+        }
+        catch {
+            updateError(`failed to add '${newItem}'`)
+        }
     }
 
     return (
@@ -95,6 +104,9 @@ function List() {
 
 type ItemProps = { uuid: schema.Uuid, updateError: UpdateError, item: schema.ShoppingItem }
 function Item({ uuid, updateError, item: { itemUuid, name, imageUrl, itemUrl, description } }: ItemProps) {
+    const titleName = name.split(' ').map(word => word[0].toUpperCase() + word.substring(1)).join(' ')
+    const trimmedDesc = description.split(' - ')[0].split(' – ')[0]
+
     const onDelete = () => {
 
     }
@@ -103,8 +115,8 @@ function Item({ uuid, updateError, item: { itemUuid, name, imageUrl, itemUrl, de
         <div className='shopping-item'>
             <a href={itemUrl} target='_blank'><img src={imageUrl} height='120' /></a>
             <div className='shopping-item-detail'>
-                <div className='shopping-item-name'>{name}</div>
-                <div className='shopping-item-desc'>{description}</div>
+                <div className='shopping-item-name'>{titleName}</div>
+                <div className='shopping-item-desc'>{trimmedDesc}</div>
             </div>
             <button className='shopping-item-remove icon-button danger-button' onClick={onDelete}>
                 {ICONS.XMARK}
