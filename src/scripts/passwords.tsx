@@ -337,12 +337,13 @@ function Options({ context, entries }: { context: Context, entries: schema.Passw
                 Import
             </button>
             <a ref={downloader} hidden />
-            <button className='button' onClick={onExport}>
+            <button className='button' onClick={onExport} disabled={!entries.length}>
                 Export
             </button>
             <button
                 className='button danger-button'
                 onClick={() => context.showModal(<ConfirmDelete context={context} />)}
+                disabled={!entries.length}
             >
                 Delete All
             </button>
