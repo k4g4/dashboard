@@ -129,6 +129,13 @@ export const newShoppingItemBody = z.object({
     description: z.string(),
 })
 
+export const deleteShoppingItemBody = z.object({
+    uuid,
+    itemUuid: uuid,
+})
+
+export const clearShoppingListBody = z.object({ uuid })
+
 const endpoints = [
     'loggedin',
     'googlelogin',
@@ -144,6 +151,8 @@ const endpoints = [
     'deletepassword',
     'importpasswords',
     'shoppinglist',
+    'deleteshopping',
+    'clearshopping',
 ] as const
 
 export type Endpoint = typeof endpoints[number]

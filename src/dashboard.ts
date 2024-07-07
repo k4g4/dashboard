@@ -156,6 +156,10 @@ export class Dashboard {
 
             case 'shoppinglist': return this.newShoppingItem(schema.newShoppingItemBody.parse(await req.json()))
 
+            case 'deleteshopping': return this.deleteShoppingItem(schema.deleteShoppingItemBody.parse(await req.json()))
+
+            case 'clearshopping': return this.clearShoppingList(schema.clearShoppingListBody.parse(await req.json()))
+
             default: return this.serve404()
         }
     }
@@ -402,6 +406,16 @@ export class Dashboard {
 
     newShoppingItem({ uuid, name, imageUrl, itemUrl, description }: z.infer<typeof schema.newShoppingItemBody>) {
         this.db.newShoppingItem(uuid, name, imageUrl, itemUrl, description)
+        return new Response()
+    }
+
+    deleteShoppingItem({ uuid, itemUuid }: z.infer<typeof schema.deleteShoppingItemBody>) {
+        this.db.deleteShoppingItem(uuid, itemUuid)
+        return new Response()
+    }
+
+    clearShoppingList({ uuid }: z.infer<typeof schema.clearShoppingListBody>) {
+        this.db.deleteShoppingList(uuid)
         return new Response()
     }
 

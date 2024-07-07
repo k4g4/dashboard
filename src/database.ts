@@ -209,4 +209,12 @@ export class Db {
         )
         this.db.exec(query)
     }
+
+    deleteShoppingItem(uuid: schema.Uuid, itemUuid: schema.Uuid) {
+        this.db.exec(`DELETE FROM shopping WHERE itemUuid = '${itemUuid}' AND userUuid = '${uuid}'`)
+    }
+
+    deleteShoppingList(uuid: schema.Uuid) {
+        this.db.exec(`DELETE FROM shopping WHERE userUuid = '${uuid}'`)
+    }
 }

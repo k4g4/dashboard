@@ -1,3 +1,8 @@
+.shopping-list-controls {
+    display: flex;
+    justify-content: space-between;
+}
+
 .new-item-form {
     display: flex;
     gap: 20px;
@@ -9,6 +14,14 @@
     font-size: 20px;
 }
 
+.clear-all-modal {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 15px 60px 40px;
+}
+
 .shopping-list {
     padding-inline-start: 0px;
     list-style-type: none;
@@ -16,15 +29,18 @@
 
 .shopping-item {
     background-color: var(--near-black);
-    padding: 20px;
-    border-radius: 10px;
+    padding: 10px;
+    border-radius: 15px;
+    margin-bottom: 20px;
     display: flex;
     flex-direction: row;
+    justify-content: space-between;
     gap: 16px;
     max-height: 120px;
 }
 
 .shopping-item-detail {
+    flex-grow: 2;
     display: flex;
     gap: 10px;
     flex-direction: column;
@@ -42,4 +58,6 @@
 .shopping-item-remove {
     min-width: 35px;
     min-height: 35px;
+    max-width: 35px;
+    max-height: 35px;
 }

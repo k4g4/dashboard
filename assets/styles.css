@@ -7,8 +7,10 @@
     --light-purp: #9381f8;
     --dark-purp: #724cfd;
     --darker-purp: #6a47e9;
+    --grayed-purp: #6c5aad;
     --warning: #b60d0d;
     --warning-dark: #910101;
+    --grayed-warning: #7e3434;
     --nav-height: 90px;
     --login-width: 400px;
 }
@@ -277,8 +279,19 @@ nav .logout-icon {
     width: fit-content;
 }
 
+.button:disabled,
+.button:hover:disabled {
+    cursor: unset;
+    background-color: var(--grayed-purp);
+}
+
 .danger-button {
     background-color: var(--warning) !important;
+}
+
+.danger-button:disabled,
+.danger-button:hover:disabled {
+    background-color: var(--grayed-warning) !important;
 }
 
 .danger-button:hover {
